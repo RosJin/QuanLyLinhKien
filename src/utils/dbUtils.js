@@ -459,28 +459,11 @@ export const getAllDropStocks = async () => {
 
   const result = [];
   for (const ds of dropStocks) {
-    const links = await db.drop_stock_orders.where('drop_stock_id').equals(ds.id).toArray();
-    const orderIds = links.map(l => l.installation_order_id);
-
-    let totalAmount = 0;
-    let totalOrders = orderIds.length;
-    let orderCodes = [];
-
-    if (orderIds.length > 0) {
-      const orders = await db.installation_orders.where('id').anyOf(orderIds).toArray();
-      totalAmount = orders.reduce((sum, o) => sum + (o.total_value || 0), 0);
-      orderCodes = orders.map(o => o.code);
-    }
-
-    result.push({
-      ...ds,
-      total_orders: totalOrders,
-      total_amount: totalAmount,
-      order_codes: orderCodes.join(', ')
-    });
+    const detail = await getDropStockDetail(ds.id);
+    result.push(detail);
   }
 
-  return result;
+  return result.filter(r => r !== null);
 };
 
 export const getDropStockDetail = async (dropStockId) => {
