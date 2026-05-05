@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\03_Development\\\\QuanLyLinhKien-React\\\\src\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(npm run *)",
+      "Bash(Get-ChildItem *)",
+      "Bash(npm install *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :5173)",
+      "Bash(findstr LISTENING)",
+      "Bash(taskkill *)",
+      "PowerShell(Copy-Item *)",
+      "Bash(Select-Object Name, PSIsContainer, Length)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\03_Development\\\\QuanLyLinhKien-React\\\\src\" -Recurse -Force | Where-Object { $_.PSIsContainer -eq $false } | Select-Object FullName | Sort-Object FullName)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
