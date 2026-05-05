@@ -429,6 +429,10 @@ export const getBankingSlipOrders = async (slipId) => {
   }));
 };
 
+export const deleteBankingSlipOrder = async (id) => {
+  await db.banking_slip_orders.delete(id);
+};
+
 // ==================== DROP STOCKS ====================
 export const createDropStock = async (dropStock, installationOrderIds) => {
   return await db.transaction('rw', db.drop_stocks, db.drop_stock_orders, async () => {
@@ -551,6 +555,34 @@ export const getAvailableInstallationOrders = async () => {
   recipients.forEach(r => recipientMap[r.id] = r);
 
   return availableOrders.map(o => ({ ...o, recipient: recipientMap[o.recipient_id] }));
+};
+
+export const updateDropStock = async (id, dropStock, installationOrderIds) => {
+  return await db.transaction('rw', db.drop_stocks, db.drop_stock_orders, async () => {
+    await db.drop_stocks.update(id, {
+      date: dropStock.date,
+      note: dropStock.note || '',
+      status: dropStock.status || 'draft',
+      updated_at: new Date().toISOString()
+    });
+
+    await db.drop_stock_orders.where('drop_stock_id').equals(id).delete();
+
+    for (const orderId of installationOrderIds) {
+      await db.drop_stock_orders.add({
+        drop_stock_id: id,
+        installation_order_id: orderId,
+        created_at: new Date().toISOString()
+      });
+    }
+  });
+};
+
+export const updateDropStockStatus = async (id, status) => {
+  await db.drop_stocks.update(id, {
+    status,
+    updated_at: new Date().toISOString()
+  });
 };
 
 // ==================== REPORTS ====================

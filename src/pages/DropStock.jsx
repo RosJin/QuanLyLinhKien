@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { Table, Button, Modal, Form, DatePicker, Select, Space, Popconfirm, message, Input, Typography } from "antd";
-import { PlusOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import { Table, Button, Modal, Form, DatePicker, Select, Space, Popconfirm, message, Input, Typography, Tag, List, Divider, Card } from "antd";
+import { PlusOutlined, DeleteOutlined, EyeOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { getAllDropStocks, getDropStockDetail, deleteDropStock, getAvailableInstallationOrders, createDropStock } from "../utils/dbUtils";
+import { getAllDropStocks, getDropStockDetail, deleteDropStock, getAvailableInstallationOrders, createDropStock, updateDropStock, updateDropStockStatus } from "../utils/dbUtils";
 
 const { Text } = Typography;
 
@@ -10,10 +10,15 @@ const DropStock = () => {
   const [dropStocks, setDropStocks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
   const [detail, setDetail] = useState(null);
+  const [editDetail, setEditDetail] = useState(null);
   const [availableOrders, setAvailableOrders] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [editOrderIds, setEditOrderIds] = useState([]);
+  const [editingId, setEditingId] = useState(null);
   const [form] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   useEffect(() => {
     loadDropStocks();
@@ -44,6 +49,22 @@ const DropStock = () => {
     form.setFieldsValue({ date: dayjs() });
     loadAvailableOrders();
     setIsModalOpen(true);
+  };
+
+  const handleEdit = async (record) => {
+    setEditingId(record.id);
+    editForm.setFieldsValue({
+      date: dayjs(record.date),
+      note: record.note
+    });
+    const detailData = await getDropStockDetail(record.id);
+    setEditDetail(detailData);
+    const linkedOrderIds = (detailData?.grouped_by_technician || [])
+      .flatMap(g => g.orders || [])
+      .map(o => o.id);
+    setEditOrderIds(linkedOrderIds);
+    loadAvailableOrders();
+    setIsEditOpen(true);
   };
 
   const handleViewDetail = async (record) => {
@@ -85,6 +106,51 @@ const DropStock = () => {
     }
   };
 
+  const handleEditSubmit = async () => {
+    try {
+      const values = await editForm.validateFields();
+      if (editOrderIds.length === 0) {
+        message.warning("Chon it nhat 1 phieu");
+        return;
+      }
+      await updateDropStock(editingId, {
+        date: values.date.format("YYYY-MM-DD"),
+        note: values.note || ""
+      }, editOrderIds);
+      message.success("Cap nhat thanh cong");
+      setIsEditOpen(false);
+      loadDropStocks();
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleUpdateStatus = async (id, status) => {
+    try {
+      await updateDropStockStatus(id, status);
+      message.success("Cap nhat trang thai thanh cong");
+      loadDropStocks();
+    } catch (error) {
+      message.error("Loi cap nhat trang thai");
+    }
+  };
+
+  const getStatusTag = (record) => {
+    const status = record.status || 'draft';
+    const statusMap = {
+      'draft': { color: 'default', text: 'Nhap' },
+      'confirmed': { color: 'blue', text: 'Da chot' },
+      'reconciled': { color: 'green', text: 'Da doi soat' }
+    };
+    const info = statusMap[status] || statusMap['draft'];
+    return <Tag color={info.color}>{info.text}</Tag>;
+  };
+
+  const orderOptions = availableOrders.map(o => ({
+    label: o.code + " - " + (o.recipient?.name || "N/A"),
+    value: o.id
+  }));
+
   const columns = [
     { title: "Ma phieu lap dat", dataIndex: "order_codes", key: "order_codes", ellipsis: true },
     { title: "Ngay", dataIndex: "date", key: "date" },
@@ -95,6 +161,11 @@ const DropStock = () => {
       key: "total_amount",
       render: (val) => (val || 0).toLocaleString("vi-VN") + " d"
     },
+    {
+      title: "Trang thai",
+      key: "status",
+      render: (_, record) => getStatusTag(record)
+    },
     { title: "Ghi chu", dataIndex: "note", key: "note", ellipsis: true },
     {
       title: "Thao tac",
@@ -102,6 +173,10 @@ const DropStock = () => {
       render: (_, record) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>Chi tiet</Button>
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Sua</Button>
+          {!record.status || record.status === 'draft' ? (
+            <Button type="link" onClick={() => handleUpdateStatus(record.id, 'confirmed')}>Chot</Button>
+          ) : null}
           <Popconfirm title="Xoa?" onConfirm={() => handleDelete(record.id)} okText="Xoa" cancelText="Huy">
             <Button type="link" danger icon={<DeleteOutlined />}>Xoa</Button>
           </Popconfirm>
@@ -109,11 +184,6 @@ const DropStock = () => {
       )
     }
   ];
-
-  const orderOptions = availableOrders.map(o => ({
-    label: o.code + " - " + (o.recipient?.name || "N/A"),
-    value: o.id
-  }));
 
   return (
     <div>
@@ -153,11 +223,40 @@ const DropStock = () => {
       </Modal>
 
       <Modal
+        title="Sua Drop Stock"
+        open={isEditOpen}
+        onOk={handleEditSubmit}
+        onCancel={() => setIsEditOpen(false)}
+        okText="Luu"
+        cancelText="Huy"
+        width={900}
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
+            <DatePicker style={{ width: "100%" }} format="YYYY-MM-DD" />
+          </Form.Item>
+          <Form.Item name="note" label="Ghi chu">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+          <Form.Item label="Chon phieu lap dat">
+            <Select
+              mode="multiple"
+              placeholder="Chon cac phieu lap dat"
+              value={editOrderIds}
+              onChange={setEditOrderIds}
+              options={orderOptions}
+              style={{ width: "100%" }}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
         title="Chi tiet Drop Stock"
         open={isDetailOpen}
-        onCancel={() => setIsDetailOpen(false)}
+        onCancel={() => { setIsDetailOpen(false); setDetail(null); }}
         footer={null}
-        width={700}
+        width={900}
       >
         {detail && (
           <div>
@@ -165,6 +264,25 @@ const DropStock = () => {
             <p><strong>Tong so phieu: </strong>{detail.total_orders}</p>
             <p><strong>Tong tien: </strong>{(detail.grand_total || 0).toLocaleString("vi-VN")} d</p>
             <p><strong>Ghi chu: </strong>{detail.note}</p>
+
+            <Divider orientation="left">Chi tiet theo KTV/CTV</Divider>
+            {(detail.grouped_by_technician || []).map((group, idx) => (
+              <Card key={idx} size="small" style={{ marginBottom: 8 }}>
+                <p><strong>{group.recipient?.name || 'N/A'}</strong> ({group.recipient?.type === 'technician' ? 'KTV' : 'CTV'})</p>
+                <p>Tong tien: {(group.total_amount || 0).toLocaleString("vi-VN")} d</p>
+                <List
+                  size="small"
+                  bordered
+                  dataSource={group.orders || []}
+                  renderItem={(item) => (
+                    <List.Item>
+                      {item.code} - {item.recipient?.name}
+                      <span style={{ float: 'right' }}>{(item.total_value || 0).toLocaleString("vi-VN")} d</span>
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            ))}
           </div>
         )}
       </Modal>

@@ -1,104 +1,139 @@
 import React, { useEffect, useState } from "react";
-import { Table, Select, Statistic, Card, Row, Col, Typography, Tag } from "antd";
-import { getAllDropStocks, getDropStockDetail, getAllBankingSlips, getAllRecipients } from "../utils/dbUtils";
+import { Table, Select, Statistic, Card, Row, Col, Typography, Tag, DatePicker, Button, Modal, List, Input, Divider } from "antd";
+import { getAllDropStocks, getDropStockDetail, getAllBankingSlips, getAllRecipients, getBankingSlipOrders } from "../utils/dbUtils";
+import dayjs from "dayjs";
 
-const { Text } = Typography;
+const { Text, Title } = Typography;
+const { RangePicker } = DatePicker;
 
 const Reconciliation = () => {
   const [dropStocks, setDropStocks] = useState([]);
   const [bankingSlips, setBankingSlips] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [selectedRecipient, setSelectedRecipient] = useState(null);
+  const [dateRange, setDateRange] = useState(null);
+  const [reconData, setReconData] = useState([]);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [detailData, setDetailData] = useState(null);
+  const [detailSlip, setDetailSlip] = useState(null);
 
   useEffect(() => {
-    loadRecipients();
-    loadDropStocks();
-    loadBankingSlips();
+    loadData();
   }, []);
 
-  const loadRecipients = async () => {
-    const data = await getAllRecipients();
-    setRecipients(data.filter(r => r.type === "technician" || r.type === "collaborator"));
+  const loadData = async () => {
+    const [dropStocksData, bankingSlipsData, recipientsData] = await Promise.all([
+      getAllDropStocks(),
+      getAllBankingSlips(),
+      getAllRecipients()
+    ]);
+    setDropStocks(dropStocksData || []);
+    setBankingSlips(bankingSlipsData || []);
+    setRecipients(recipientsData.filter(r => r.type === "technician" || r.type === "collaborator"));
+    buildReconciliationData(dropStocksData, bankingSlipsData, recipientsData);
   };
 
-  const loadDropStocks = async () => {
-    try {
-      const data = await getAllDropStocks();
-      setDropStocks(data || []);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const buildReconciliationData = (dropStocksData, bankingSlipsData, recipientsData) => {
+    const techMap = {};
+    recipientsData
+      .filter(r => r.type === "technician" || r.type === "collaborator")
+      .forEach(r => {
+        techMap[r.id] = {
+          recipient: r,
+          dropStockTotal: 0,
+          bankingTotal: 0,
+          dropStockCount: 0,
+          bankingCount: 0,
+          dropStockIds: [],
+          bankingIds: []
+        };
+      });
 
-  const loadBankingSlips = async () => {
-    try {
-      const data = await getAllBankingSlips();
-      setBankingSlips(data || []);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  // Calculate per-tech totals from Drop Stocks
-  const getTechTotalsFromDropStocks = () => {
-    const techTotals = {};
-
-    dropStocks.forEach(ds => {
+    (dropStocksData || []).forEach(ds => {
       if (!ds.grouped_by_technician) return;
       ds.grouped_by_technician.forEach(group => {
         const recipientId = group.recipient?.id;
-        if (!recipientId) return;
-        if (!techTotals[recipientId]) {
-          techTotals[recipientId] = {
-            recipient: group.recipient,
-            dropStockTotal: 0,
-            bankingTotal: 0,
-            dropStockCount: 0
-          };
-        }
-        techTotals[recipientId].dropStockTotal += group.total_amount || 0;
-        techTotals[recipientId].dropStockCount += 1;
+        if (!recipientId || !techMap[recipientId]) return;
+        techMap[recipientId].dropStockTotal += group.total_amount || 0;
+        techMap[recipientId].dropStockCount += 1;
+        techMap[recipientId].dropStockIds.push(ds.id);
       });
     });
 
-    return techTotals;
-  };
-
-  // Calculate per-tech totals from Banking Slips
-  const getTechTotalsFromBanking = () => {
-    const techTotals = {};
-
-    bankingSlips.forEach(slip => {
+    (bankingSlipsData || []).forEach(slip => {
       const recipientId = slip.recipient_id;
-      if (!recipientId) return;
-      if (!techTotals[recipientId]) {
-        techTotals[recipientId] = 0;
-      }
-      techTotals[recipientId] += slip.amount || 0;
+      if (!recipientId || !techMap[recipientId]) return;
+      techMap[recipientId].bankingTotal += slip.amount || 0;
+      techMap[recipientId].bankingCount += 1;
+      techMap[recipientId].bankingIds.push(slip.id);
     });
 
-    return techTotals;
+    const data = Object.keys(techMap)
+      .map(recipientId => {
+        const info = techMap[recipientId];
+        const diff = (info.dropStockTotal || 0) - (info.bankingTotal || 0);
+        return {
+          key: recipientId,
+          recipient: info.recipient,
+          dropStockTotal: info.dropStockTotal || 0,
+          bankingTotal: info.bankingTotal || 0,
+          diff: diff,
+          dropStockCount: info.dropStockCount || 0,
+          bankingCount: info.bankingCount || 0,
+          dropStockIds: info.dropStockIds,
+          bankingIds: info.bankingIds,
+          status: diff > 0 ? "Thieu tien" : diff < 0 ? "Thua tien" : "Du tien"
+        };
+      })
+      .filter(item => item.dropStockCount > 0 || item.bankingCount > 0);
+
+    setReconData(data);
   };
 
-  const techDropTotals = getTechTotalsFromDropStocks();
-  const techBankingTotals = getTechTotalsFromBanking();
+  const handleFilter = async () => {
+    let filteredDropStocks = dropStocks;
+    let filteredBankingSlips = bankingSlips;
 
-  // Build reconciliation data
-  const reconciliationData = Object.keys(techDropTotals).map(recipientId => {
-    const dropInfo = techDropTotals[recipientId];
-    const bankingTotal = techBankingTotals[recipientId] || 0;
-    const diff = (dropInfo.dropStockTotal || 0) - bankingTotal;
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const start = dateRange[0].startOf('day');
+      const end = dateRange[1].endOf('day');
+      filteredDropStocks = dropStocks.filter(ds => {
+        const d = dayjs(ds.date);
+        return d.isAfter(start) && d.isBefore(end);
+      });
+      filteredBankingSlips = bankingSlips.filter(slip => {
+        const d = dayjs(slip.transfer_date);
+        return d.isAfter(start) && d.isBefore(end);
+      });
+    }
 
-    return {
-      key: recipientId,
-      recipient: dropInfo.recipient,
-      dropStockTotal: dropInfo.dropStockTotal || 0,
-      bankingTotal: bankingTotal,
-      diff: diff,
-      dropStockCount: dropInfo.dropStockCount || 0,
-      status: diff > 0 ? "Thieu tien" : diff < 0 ? "Thua tien" : "Du tien"
-    };
-  });
+    if (selectedRecipient) {
+      filteredDropStocks = filteredDropStocks.filter(ds => {
+        if (!ds.grouped_by_technician) return false;
+        return ds.grouped_by_technician.some(g => g.recipient?.id === selectedRecipient);
+      });
+      filteredBankingSlips = filteredBankingSlips.filter(slip => slip.recipient_id === selectedRecipient);
+    }
+
+    buildReconciliationData(filteredDropStocks, filteredBankingSlips, recipients);
+  };
+
+  const handleViewDetail = async (record) => {
+    setDetailData(record);
+    const slipDetails = [];
+    for (const slipId of record.bankingIds || []) {
+      const slip = bankingSlips.find(s => s.id === slipId);
+      if (slip) {
+        const linkedOrders = await getBankingSlipOrders(slipId);
+        slipDetails.push({
+          ...slip,
+          linkedOrders: linkedOrders || []
+        });
+      }
+    }
+    setDetailSlip(slipDetails);
+    setIsDetailOpen(true);
+  };
 
   const columns = [
     {
@@ -137,30 +172,150 @@ const Reconciliation = () => {
         return <Tag color={color}>{status}</Tag>;
       }
     },
-    { title: "So Drop Stock", dataIndex: "dropStockCount", key: "dropStockCount" }
+    { title: "So Drop Stock", dataIndex: "dropStockCount", key: "dropStockCount" },
+    { title: "So Banking Slip", dataIndex: "bankingCount", key: "bankingCount" },
+    {
+      title: "Chi tiet",
+      key: "actions",
+      render: (_, record) => (
+        <Button type="link" onClick={() => handleViewDetail(record)}>Xem chi tiet</Button>
+      )
+    }
   ];
 
-  const totalDropStock = reconciliationData.reduce((sum, item) => sum + item.dropStockTotal, 0);
-  const totalBanking = reconciliationData.reduce((sum, item) => sum + item.bankingTotal, 0);
+  const totalDropStock = reconData.reduce((sum, item) => sum + item.dropStockTotal, 0);
+  const totalBanking = reconData.reduce((sum, item) => sum + item.bankingTotal, 0);
   const totalDiff = totalDropStock - totalBanking;
 
   return (
     <div>
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}>
-          <Card><Statistic title="Tong (Drop Stock)" value={totalDropStock} precision={0} suffix="d" formatter={(val) => val.toLocaleString("vi-VN")} /></Card>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Tong (Drop Stock)"
+              value={totalDropStock}
+              precision={0}
+              suffix="d"
+              formatter={(val) => val.toLocaleString("vi-VN")}
+            />
+          </Card>
         </Col>
-        <Col span={8}>
-          <Card><Statistic title="Tong (Banking Slips)" value={totalBanking} precision={0} suffix="d" formatter={(val) => val.toLocaleString("vi-VN")} /></Card>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Tong (Banking Slips)"
+              value={totalBanking}
+              precision={0}
+              suffix="d"
+              formatter={(val) => val.toLocaleString("vi-VN")}
+            />
+          </Card>
         </Col>
-        <Col span={8}>
-          <Card><Statistic title="Chenh lech" value={totalDiff} precision={0} suffix="d" valueStyle={{ color: totalDiff > 0 ? "#cf1322" : totalDiff < 0 ? "#3f8600" : "#000" }} formatter={(val) => val.toLocaleString("vi-VN")} /></Card>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Chenh lech"
+              value={totalDiff}
+              precision={0}
+              suffix="d"
+              valueStyle={{ color: totalDiff > 0 ? "#cf1322" : totalDiff < 0 ? "#3f8600" : "#000" }}
+              formatter={(val) => val.toLocaleString("vi-VN")}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Button type="primary" onClick={loadData} style={{ width: "100%", height: "100%" }}>
+              Lam moi du lieu
+            </Button>
+          </Card>
         </Col>
       </Row>
 
-      <Card title="Doi soat: Drop Stock vs Banking Slips">
-        <Table dataSource={reconciliationData} columns={columns} rowKey="key" pagination={{ pageSize: 10 }} />
+      <Card title="Bo loc" style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col span={8}>
+            <RangePicker
+              style={{ width: "100%" }}
+              onChange={(dates) => setDateRange(dates)}
+              placeholder={["Tu ngay", "Den ngay"]}
+            />
+          </Col>
+          <Col span={8}>
+            <Select
+              placeholder="Chon KTV/CTV"
+              allowClear
+              style={{ width: "100%" }}
+              value={selectedRecipient}
+              onChange={setSelectedRecipient}
+              showSearch
+              optionFilterProp="children"
+            >
+              {recipients.map(r => (
+                <Select.Option key={r.id} value={r.id}>{r.code} - {r.name}</Select.Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={8}>
+            <Button type="primary" onClick={handleFilter}>Loc du lieu</Button>
+          </Col>
+        </Row>
       </Card>
+
+      <Card title="Doi soat: Drop Stock vs Banking Slips">
+        <Table dataSource={reconData} columns={columns} rowKey="key" pagination={{ pageSize: 10 }} />
+      </Card>
+
+      <Modal
+        title={`Chi tiet doi soat: ${detailData?.recipient?.name || ''}`}
+        open={isDetailOpen}
+        onCancel={() => { setIsDetailOpen(false); setDetailData(null); setDetailSlip(null); }}
+        footer={null}
+        width={800}
+      >
+        {detailData && (
+          <div>
+            <Row gutter={16} style={{ marginBottom: 16 }}>
+              <Col span={8}>
+                <Statistic title="Tong Drop Stock" value={detailData.dropStockTotal} precision={0} suffix="d" formatter={(val) => val.toLocaleString("vi-VN")} />
+              </Col>
+              <Col span={8}>
+                <Statistic title="Tien da nhan" value={detailData.bankingTotal} precision={0} suffix="d" formatter={(val) => val.toLocaleString("vi-VN")} />
+              </Col>
+              <Col span={8}>
+                <Statistic
+                  title="Chenh lech"
+                  value={detailData.diff}
+                  precision={0}
+                  suffix="d"
+                  valueStyle={{ color: detailData.diff > 0 ? "#cf1322" : detailData.diff < 0 ? "#3f8600" : "#000" }}
+                  formatter={(val) => val.toLocaleString("vi-VN")}
+                />
+              </Col>
+            </Row>
+
+            <Divider orientation="left">Chi tiet Banking Slips & Phieu lien ket</Divider>
+            {detailSlip && detailSlip.map((slip, idx) => (
+              <Card key={idx} size="small" style={{ marginBottom: 8 }}>
+                <p><strong>Ma phieu:</strong> {slip.code} | <strong>Ngay:</strong> {slip.transfer_date} | <strong>So tien:</strong> {(slip.amount || 0).toLocaleString("vi-VN")} d</p>
+                <List
+                  size="small"
+                  bordered
+                  dataSource={slip.linkedOrders || []}
+                  renderItem={(item) => (
+                    <List.Item>
+                      {item.order?.code} - {item.order?.recipient?.name}
+                      <span style={{ float: 'right' }}>{(item.order?.total_value || 0).toLocaleString("vi-VN")} d</span>
+                    </List.Item>
+                  )}
+                  locale={{ emptyText: 'Chua lien ket phieu nao' }}
+                />
+              </Card>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
