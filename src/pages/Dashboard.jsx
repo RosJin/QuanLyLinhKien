@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Space } from 'antd';
+import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message } from 'antd';
 import { ShoppingOutlined, InboxOutlined, WarningOutlined, DollarOutlined } from '@ant-design/icons';
 import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts } from '../utils/dbUtils';
 import db from '../db/database';
+import seedData from '../utils/seedData';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -140,8 +141,20 @@ const Dashboard = () => {
     }
   ];
 
+  const handleSeedData = async () => {
+    try {
+      await seedData();
+      message.success('Da tao du lieu mau!');
+      loadData();
+    } catch (error) {
+      console.error(error);
+      message.error('Loi tao du lieu');
+    }
+  };
+
   return (
     <div>
+      <Button type="primary" onClick={handleSeedData} style={{ marginBottom: 16 }}>Tao du lieu mau de test</Button>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={6}>
           <Card>
