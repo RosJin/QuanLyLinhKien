@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Select, Input, InputNumber, Space, Popconfirm, message, Card, Row, Col, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { getAllInstallationOrders, getInstallationOrderItems, addInstallationOrder, updateInstallationOrder, deleteInstallationOrder, getAllRecipients, getAllProducts, getAllCombos, getComboItems } from '../utils/dbUtils';
+import useMobile from '../hooks/useMobile';
 
 const { Title, Text } = Typography;
 
 const InstallationOrders = () => {
+  const isMobile = useMobile();
   const [orders, setOrders] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -221,7 +223,7 @@ const InstallationOrders = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Tạo phiếu lắp đặt</Button>
       </div>
 
-      <Table dataSource={orders} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table dataSource={orders} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
 
       <Modal
         title={editingOrder ? 'Sửa phiếu lắp đặt' : 'Tạo phiếu lắp đặt mới'}
@@ -230,7 +232,7 @@ const InstallationOrders = () => {
         onCancel={() => setIsModalOpen(false)}
         okText="Lưu"
         cancelText="Hủy"
-        width={800}
+        width={isMobile ? '95%' : 800}
       >
         <Form form={form} layout="vertical" onValuesChange={(changedValues) => {
           if (changedValues.combo_id !== undefined) {
@@ -254,8 +256,8 @@ const InstallationOrders = () => {
 
           <Card title="Sản phẩm & Combo" size="small">
             <div style={{ marginBottom: 16, padding: 16, background: '#fafafa', borderRadius: 8 }}>
-              <Row gutter={8} align="middle" style={{ marginBottom: 8 }}>
-                <Col span={8}>
+              <Row gutter={[8, 8]} align="middle" style={{ marginBottom: 8 }}>
+                <Col xs={24} sm={8}>
                   <Form.Item name="combo_id" style={{ marginBottom: 0 }}>
                     <Select
                       placeholder="Chọn Combo"
@@ -270,15 +272,15 @@ const InstallationOrders = () => {
                     </Select>
                   </Form.Item>
                 </Col>
-                <Col span={6}>
+                <Col xs={12} sm={6}>
                   <Form.Item name="combo_quantity" initialValue={1} style={{ marginBottom: 0 }}>
                     <InputNumber min={1} placeholder="SL Combo" style={{ width: '100%' }} />
                   </Form.Item>
                 </Col>
-                <Col span={4}>
-                  <Button type="dashed" onClick={addComboToOrder}>Thêm Combo</Button>
+                <Col xs={12} sm={4}>
+                  <Button type="dashed" onClick={addComboToOrder} style={{ width: '100%' }}>Thêm Combo</Button>
                 </Col>
-                <Col span={6}>
+                <Col xs={24} sm={6}>
                   <Button size="small" type="dashed" onClick={addOrderItem} style={{ width: '100%' }}>+ Thêm SP lẻ</Button>
                 </Col>
               </Row>
@@ -296,7 +298,7 @@ const InstallationOrders = () => {
 
             {orderItems.map((item, index) => (
               <Row gutter={8} key={`item-${index}`} style={{ marginBottom: 8 }}>
-                <Col span={10}>
+                <Col xs={24} sm={10}>
                   <Select
                     placeholder="Chọn SP"
                     value={item.product_id}
@@ -307,7 +309,7 @@ const InstallationOrders = () => {
                     {products.map(p => <Select.Option key={p.id} value={p.id}>{p.code} - {p.name}</Select.Option>)}
                   </Select>
                 </Col>
-                <Col span={6}>
+                <Col xs={12} sm={6}>
                   <InputNumber
                     min={1}
                     value={item.quantity}
@@ -316,7 +318,7 @@ const InstallationOrders = () => {
                     placeholder="SL"
                   />
                 </Col>
-                <Col span={6}>
+                <Col xs={10} sm={6}>
                   <InputNumber
                     min={0}
                     value={item.price}
@@ -325,7 +327,7 @@ const InstallationOrders = () => {
                     placeholder="Giá"
                   />
                 </Col>
-                <Col span={2}>
+                <Col xs={2}>
                   <Button type="text" danger icon={<DeleteOutlined />} onClick={() => removeOrderItem(index)} />
                 </Col>
               </Row>
@@ -351,8 +353,8 @@ const InstallationOrders = () => {
             ))}
 
             <Row gutter={8} style={{ marginTop: 8 }}>
-              <Col span={12}><strong>Tổng SL: {calculateTotalQty()}</strong></Col>
-              <Col span={12} style={{ textAlign: 'right' }}><strong>Tổng tiền: {calculateTotal().toLocaleString('vi-VN')} đ</strong></Col>
+              <Col xs={24} sm={12}><strong>Tổng SL: {calculateTotalQty()}</strong></Col>
+              <Col xs={24} sm={12} style={{ textAlign: isMobile ? 'left' : 'right' }}><strong>Tổng tiền: {calculateTotal().toLocaleString('vi-VN')} đ</strong></Col>
             </Row>
           </Card>
         </Form>
@@ -363,7 +365,7 @@ const InstallationOrders = () => {
         open={isDetailOpen}
         onCancel={() => setIsDetailOpen(false)}
         footer={null}
-        width={600}
+        width={isMobile ? '95%' : 600}
       >
         {detailItems.map((item, index) => (
           <div key={index} style={{ marginBottom: 8, padding: 8, background: '#f5f5f5', borderRadius: 4 }}>

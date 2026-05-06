@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, InputNumber, Select, Space, Tag, Popconfirm, message } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllProducts, addProduct, updateProduct, deleteProduct, searchProducts } from '../utils/dbUtils';
+import useMobile from '../hooks/useMobile';
 
 const Products = () => {
+  const isMobile = useMobile();
   const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -104,20 +106,20 @@ const Products = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <Input.Search
           placeholder="Tìm kiếm theo mã, tên, danh mục..."
           allowClear
-          style={{ width: 300 }}
+          style={{ width: isMobile ? '100%' : 300 }}
           onSearch={handleSearch}
           onChange={(e) => !e.target.value && loadProducts()}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={isMobile ? { width: '100%' } : {}}>
           Thêm sản phẩm
         </Button>
       </div>
 
-      <Table dataSource={products} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table dataSource={products} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 800 }} />
 
       <Modal
         title={editingProduct ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}
@@ -126,6 +128,7 @@ const Products = () => {
         onCancel={() => setIsModalOpen(false)}
         okText="Lưu"
         cancelText="Hủy"
+        width={isMobile ? '95%' : 520}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="code" label="Mã sản phẩm" rules={[{ required: true, message: 'Vui lòng nhập mã' }]}>

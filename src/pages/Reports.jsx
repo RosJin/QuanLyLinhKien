@@ -3,8 +3,10 @@ import { Table, DatePicker, Card, Row, Col, Statistic, Space, Select, Button } f
 import { SearchOutlined } from '@ant-design/icons';
 import { getStatistics, getCategoryStats, getAllRecipients, getRecipientExportReport, getAllInstallationOrders, getInstallationOrderItems } from '../utils/dbUtils';
 import dayjs from 'dayjs';
+import useMobile from '../hooks/useMobile';
 
 const Reports = () => {
+  const isMobile = useMobile();
   const [stats, setStats] = useState({});
   const [categoryStats, setCategoryStats] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -104,16 +106,16 @@ const Reports = () => {
 
   const renderOverview = () => (
     <>
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={4}><Card><Statistic title="Sản phẩm" value={stats.total_products || 0} /></Card></Col>
-        <Col span={4}><Card><Statistic title="Tổng SL" value={stats.total_quantity || 0} /></Card></Col>
-        <Col span={4}><Card><Statistic title="Tổng giá trị" value={stats.total_value || 0} precision={0} suffix="đ" formatter={(val) => (val || 0).toLocaleString('vi-VN')} /></Card></Col>
-        <Col span={4}><Card><Statistic title="Nhập" value={stats.total_import || 0} /></Card></Col>
-        <Col span={4}><Card><Statistic title="Xuất" value={stats.total_export || 0} /></Card></Col>
-        <Col span={4}><Card><Statistic title="Sắp hết" value={stats.low_stock_count || 0} valueStyle={{ color: (stats.low_stock_count || 0) > 0 ? '#cf1322' : '#3f8600' }} /></Card></Col>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} md={8} lg={4}><Card><Statistic title="Sản phẩm" value={stats.total_products || 0} /></Card></Col>
+        <Col xs={24} sm={12} md={8} lg={4}><Card><Statistic title="Tổng SL" value={stats.total_quantity || 0} /></Card></Col>
+        <Col xs={24} sm={12} md={8} lg={4}><Card><Statistic title="Tổng giá trị" value={stats.total_value || 0} precision={0} suffix="đ" formatter={(val) => (val || 0).toLocaleString('vi-VN')} /></Card></Col>
+        <Col xs={24} sm={12} md={8} lg={4}><Card><Statistic title="Nhập" value={stats.total_import || 0} /></Card></Col>
+        <Col xs={24} sm={12} md={8} lg={4}><Card><Statistic title="Xuất" value={stats.total_export || 0} /></Card></Col>
+        <Col xs={24} sm={12} md={8} lg={4}><Card><Statistic title="Sắp hết" value={stats.low_stock_count || 0} valueStyle={{ color: (stats.low_stock_count || 0) > 0 ? '#cf1322' : '#3f8600' }} /></Card></Col>
       </Row>
       <Card title="Thống kê theo danh mục" style={{ marginBottom: 24 }}>
-        <Table dataSource={categoryStats.map(([cat, data]) => ({ category: cat, ...data }))} columns={catColumns} rowKey="category" size="small" pagination={false} />
+        <Table dataSource={categoryStats.map(([cat, data]) => ({ category: cat, ...data }))} columns={catColumns} rowKey="category" size="small" pagination={false} scroll={{ x: 600 }} />
       </Card>
     </>
   );
@@ -121,32 +123,32 @@ const Reports = () => {
   const renderExportReport = () => (
     <Card>
       <div style={{ marginBottom: 16 }}>
-        <Space>
+        <Space direction={isMobile ? 'vertical' : 'horizontal'} size={[8, 8]} style={{ width: isMobile ? '100%' : 'auto' }}>
           <Select
             placeholder="Chọn người nhận"
             allowClear
-            style={{ width: 250 }}
+            style={{ width: isMobile ? '100%' : 250 }}
             showSearch
             options={recipientOptions}
             onChange={(val) => { setSelectedRecipient(val); if (val) handleSearch(); }}
             value={selectedRecipient}
           />
-          <DatePicker placeholder="Từ ngày" onChange={(d) => setStartDate(d)} />
-          <DatePicker placeholder="Đến ngày" onChange={(d) => setEndDate(d)} />
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>Xem báo cáo</Button>
+          <DatePicker placeholder="Từ ngày" onChange={(d) => setStartDate(d)} style={{ width: isMobile ? '100%' : 'auto' }} />
+          <DatePicker placeholder="Đến ngày" onChange={(d) => setEndDate(d)} style={{ width: isMobile ? '100%' : 'auto' }} />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} style={isMobile ? { width: '100%' } : {}}>Xem báo cáo</Button>
         </Space>
       </div>
-      <Table dataSource={transactions} columns={transColumns} rowKey="id" pagination={{ pageSize: 15 }} />
+      <Table dataSource={transactions} columns={transColumns} rowKey="id" pagination={{ pageSize: 15 }} scroll={{ x: 800 }} />
     </Card>
   );
 
   const renderIssuedItems = () => (
     <Card>
       <div style={{ marginBottom: 16 }}>
-        <Space>
+        <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : 'auto' }}>
           <Select
             placeholder="Chọn KTV/CTV"
-            style={{ width: 300 }}
+            style={{ width: isMobile ? '100%' : 300 }}
             showSearch
             options={techOptions}
             onChange={handleViewIssuedItems}
@@ -159,6 +161,7 @@ const Reports = () => {
         columns={issuedColumns}
         rowKey="id"
         pagination={{ pageSize: 15 }}
+        scroll={{ x: 800 }}
         summary={(data) => {
           const total = data.reduce((sum, item) => sum + (item.quantity || 0) * (item.price || 0), 0);
           return (
@@ -176,10 +179,10 @@ const Reports = () => {
     <div>
       <h2>Báo cáo & Thống kê</h2>
       <div style={{ marginBottom: 16 }}>
-        <Space>
-          <Button type={activeTab === 'overview' ? 'primary' : 'default'} onClick={() => setActiveTab('overview')}>Tổng quan</Button>
-          <Button type={activeTab === 'export' ? 'primary' : 'default'} onClick={() => setActiveTab('export')}>Báo cáo xuất kho</Button>
-          <Button type={activeTab === 'issued' ? 'primary' : 'default'} onClick={() => setActiveTab('issued')}>Phát linh kiện KTV/CTV</Button>
+        <Space direction={isMobile ? 'vertical' : 'horizontal'} style={{ width: isMobile ? '100%' : 'auto' }}>
+          <Button type={activeTab === 'overview' ? 'primary' : 'default'} onClick={() => setActiveTab('overview')} style={isMobile ? { width: '100%' } : {}}>Tổng quan</Button>
+          <Button type={activeTab === 'export' ? 'primary' : 'default'} onClick={() => setActiveTab('export')} style={isMobile ? { width: '100%' } : {}}>Báo cáo xuất kho</Button>
+          <Button type={activeTab === 'issued' ? 'primary' : 'default'} onClick={() => setActiveTab('issued')} style={isMobile ? { width: '100%' } : {}}>Phát linh kiện KTV/CTV</Button>
         </Space>
       </div>
       {activeTab === 'overview' && renderOverview()}

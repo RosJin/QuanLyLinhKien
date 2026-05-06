@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Select, InputNumber, Space, Popconfirm, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlusSquareOutlined } from '@ant-design/icons';
 import { getAllCombos, addCombo, updateCombo, deleteCombo, searchCombos, getComboItems, addComboItem, deleteComboItem, getAllProducts } from '../utils/dbUtils';
+import useMobile from '../hooks/useMobile';
 
 const Combos = () => {
+  const isMobile = useMobile();
   const [combos, setCombos] = useState([]);
   const [products, setProducts] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,11 +118,11 @@ const Combos = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <Input.Search
           placeholder="Tìm kiếm theo mã, tên..."
           allowClear
-          style={{ width: 300 }}
+          style={{ width: isMobile ? '100%' : 300 }}
           onSearch={async (keyword) => {
             if (keyword) {
               const results = await searchCombos(keyword);
@@ -128,12 +130,12 @@ const Combos = () => {
             } else { loadData(); }
           }}
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Thêm combo</Button>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={isMobile ? { width: '100%' } : {}}>Thêm combo</Button>
       </div>
 
-      <Table dataSource={combos} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table dataSource={combos} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 600 }} />
 
-      <Modal title={editingCombo ? 'Sửa combo' : 'Thêm combo mới'} open={isModalOpen} onOk={handleSubmit} onCancel={() => setIsModalOpen(false)} okText="Lưu" cancelText="Hủy">
+      <Modal title={editingCombo ? 'Sửa combo' : 'Thêm combo mới'} open={isModalOpen} onOk={handleSubmit} onCancel={() => setIsModalOpen(false)} okText="Lưu" cancelText="Hủy" width={isMobile ? '95%' : 520}>
         <Form form={form} layout="vertical">
           <Form.Item name="code" label="Mã combo" rules={[{ required: true, message: 'Vui lòng nhập mã' }]}>
             <Input placeholder="Nhập mã combo" />
@@ -150,21 +152,21 @@ const Combos = () => {
         </Form>
       </Modal>
 
-      <Modal title={`Quản lý sản phẩm trong combo: ${selectedCombo?.name || ''}`} open={isItemModalOpen} onCancel={() => setIsItemModalOpen(false)} footer={null} width={800}>
-        <div style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
-          <Form form={itemForm} layout="inline">
+      <Modal title={`Quản lý sản phẩm trong combo: ${selectedCombo?.name || ''}`} open={isItemModalOpen} onCancel={() => setIsItemModalOpen(false)} footer={null} width={isMobile ? '95%' : 800}>
+        <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Form form={itemForm} layout={isMobile ? 'vertical' : 'inline'} style={{ width: isMobile ? '100%' : 'auto' }}>
             <Form.Item name="product_id" rules={[{ required: true, message: 'Chọn SP' }]}>
-              <Select placeholder="Chọn sản phẩm" style={{ width: 300 }} showSearch optionFilterProp="children">
+              <Select placeholder="Chọn sản phẩm" style={{ width: isMobile ? '100%' : 300 }} showSearch optionFilterProp="children">
                 {products.map(p => <Select.Option key={p.id} value={p.id}>{p.code} - {p.name}</Select.Option>)}
               </Select>
             </Form.Item>
             <Form.Item name="quantity" rules={[{ required: true, message: 'Nhập SL' }]}>
-              <InputNumber min={1} placeholder="SL" style={{ width: 80 }} />
+              <InputNumber min={1} placeholder="SL" style={{ width: isMobile ? '100%' : 80 }} />
             </Form.Item>
-            <Button type="primary" onClick={handleAddItem}>Thêm</Button>
+            <Button type="primary" onClick={handleAddItem} style={isMobile ? { width: '100%' } : {}}>Thêm</Button>
           </Form>
         </div>
-        <Table dataSource={comboItems} columns={itemColumns} rowKey="id" size="small" pagination={false} />
+        <Table dataSource={comboItems} columns={itemColumns} rowKey="id" size="small" pagination={false} scroll={{ x: 500 }} />
       </Modal>
     </div>
   );

@@ -3,11 +3,13 @@ import { Table, Button, Modal, Form, Select, InputNumber, Input, Radio, Space, T
 import { PlusOutlined, ImportOutlined, ExportOutlined, EditOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
 import { getTransactions, getAllProducts, getAllRecipients, addTransaction, updateTransaction, deleteTransaction, getAllCombos, getComboItems, processComboTransaction } from '../utils/dbUtils';
 import dayjs from 'dayjs';
+import useMobile from '../hooks/useMobile';
 
 const { Text } = Typography;
 const { RangePicker } = DatePicker;
 
 const PhysicalStock = () => {
+  const isMobile = useMobile();
   const [transactions, setTransactions] = useState([]);
   const [products, setProducts] = useState([]);
   const [recipients, setRecipients] = useState([]);
@@ -175,7 +177,7 @@ const PhysicalStock = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <Button type="primary" icon={<ImportOutlined />} onClick={() => handleAddTransaction('import')} style={{ marginRight: 8 }}>
             Nhập kho
@@ -187,13 +189,13 @@ const PhysicalStock = () => {
       </div>
 
       <div style={{ marginBottom: 16, padding: 16, background: '#fafafa', borderRadius: 8 }}>
-        <Space wrap>
+        <Space direction={isMobile ? 'vertical' : 'horizontal'} size={[8, 8]} style={{ width: isMobile ? '100%' : 'auto' }}>
           <Select
             placeholder="Sản phẩm"
             allowClear
             showSearch
             optionFilterProp="children"
-            style={{ width: 200 }}
+            style={{ width: isMobile ? '100%' : 200 }}
             value={filterProductId}
             onChange={setFilterProductId}
           >
@@ -207,7 +209,7 @@ const PhysicalStock = () => {
             allowClear
             showSearch
             optionFilterProp="children"
-            style={{ width: 200 }}
+            style={{ width: isMobile ? '100%' : 200 }}
             value={filterRecipientId}
             onChange={setFilterRecipientId}
           >
@@ -219,7 +221,7 @@ const PhysicalStock = () => {
           <Select
             placeholder="Loại giao dịch"
             allowClear
-            style={{ width: 150 }}
+            style={{ width: isMobile ? '100%' : 150 }}
             value={filterType}
             onChange={setFilterType}
           >
@@ -230,7 +232,7 @@ const PhysicalStock = () => {
           <RangePicker
             value={filterDateRange}
             onChange={setFilterDateRange}
-            style={{ width: 280 }}
+            style={{ width: isMobile ? '100%' : 280 }}
             placeholder={['Từ ngày', 'Đến ngày']}
           />
 
@@ -238,7 +240,7 @@ const PhysicalStock = () => {
         </Space>
       </div>
 
-      <Table dataSource={transactions} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table dataSource={transactions} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
 
       <Modal
         title={editingTransaction ? 'Sửa giao dịch' : (transType === 'import' ? 'Nhập kho' : 'Xuất kho')}
@@ -247,7 +249,7 @@ const PhysicalStock = () => {
         onCancel={() => { setIsModalOpen(false); setEditingTransaction(null); }}
         okText={editingTransaction ? 'Cập nhật' : 'Lưu'}
         cancelText="Hủy"
-        width={700}
+        width={isMobile ? '95%' : 700}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="type" hidden><Input /></Form.Item>

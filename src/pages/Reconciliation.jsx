@@ -2,11 +2,13 @@ import React, { useEffect, useState } from "react";
 import { Table, Select, Statistic, Card, Row, Col, Typography, Tag, DatePicker, Button, Modal, List, Input, Divider } from "antd";
 import { getAllDropStocks, getDropStockDetail, getAllBankingSlips, getAllRecipients, getBankingSlipOrders } from "../utils/dbUtils";
 import dayjs from "dayjs";
+import useMobile from '../hooks/useMobile';
 
 const { Text, Title } = Typography;
 const { RangePicker } = DatePicker;
 
 const Reconciliation = () => {
+  const isMobile = useMobile();
   const [dropStocks, setDropStocks] = useState([]);
   const [bankingSlips, setBankingSlips] = useState([]);
   const [recipients, setRecipients] = useState([]);
@@ -189,8 +191,8 @@ const Reconciliation = () => {
 
   return (
     <div>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Tong (Drop Stock)"
@@ -201,7 +203,7 @@ const Reconciliation = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Tong (Banking Slips)"
@@ -212,7 +214,7 @@ const Reconciliation = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title="Chenh lech"
@@ -224,7 +226,7 @@ const Reconciliation = () => {
             />
           </Card>
         </Col>
-        <Col span={6}>
+        <Col xs={24} sm={12} md={6}>
           <Card>
             <Button type="primary" onClick={loadData} style={{ width: "100%", height: "100%" }}>
               Lam moi du lieu
@@ -234,15 +236,15 @@ const Reconciliation = () => {
       </Row>
 
       <Card title="Bo loc" style={{ marginBottom: 16 }}>
-        <Row gutter={16}>
-          <Col span={8}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={8}>
             <RangePicker
               style={{ width: "100%" }}
               onChange={(dates) => setDateRange(dates)}
               placeholder={["Tu ngay", "Den ngay"]}
             />
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Select
               placeholder="Chon KTV/CTV"
               allowClear
@@ -257,14 +259,14 @@ const Reconciliation = () => {
               ))}
             </Select>
           </Col>
-          <Col span={8}>
-            <Button type="primary" onClick={handleFilter}>Loc du lieu</Button>
+          <Col xs={24} sm={8}>
+            <Button type="primary" onClick={handleFilter} style={{ width: isMobile ? '100%' : 'auto' }}>Loc du lieu</Button>
           </Col>
         </Row>
       </Card>
 
       <Card title="Doi soat: Drop Stock vs Banking Slips">
-        <Table dataSource={reconData} columns={columns} rowKey="key" pagination={{ pageSize: 10 }} />
+        <Table dataSource={reconData} columns={columns} rowKey="key" pagination={{ pageSize: 10 }} scroll={{ x: 800 }} />
       </Card>
 
       <Modal
@@ -272,18 +274,18 @@ const Reconciliation = () => {
         open={isDetailOpen}
         onCancel={() => { setIsDetailOpen(false); setDetailData(null); setDetailSlip(null); }}
         footer={null}
-        width={800}
+        width={isMobile ? '95%' : 800}
       >
         {detailData && (
           <div>
-            <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={8}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+              <Col xs={24} sm={8}>
                 <Statistic title="Tong Drop Stock" value={detailData.dropStockTotal} precision={0} suffix="d" formatter={(val) => val.toLocaleString("vi-VN")} />
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic title="Tien da nhan" value={detailData.bankingTotal} precision={0} suffix="d" formatter={(val) => val.toLocaleString("vi-VN")} />
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <Statistic
                   title="Chenh lech"
                   value={detailData.diff}

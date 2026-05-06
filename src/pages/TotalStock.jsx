@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { Table, Tag, Input } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { getAllProducts } from '../utils/dbUtils';
+import useMobile from '../hooks/useMobile';
 
 const TotalStock = () => {
+  const isMobile = useMobile();
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
 
@@ -76,7 +78,7 @@ const TotalStock = () => {
         <Input.Search
           placeholder="Tìm kiếm theo mã, tên, danh mục..."
           allowClear
-          style={{ width: 300 }}
+          style={{ width: isMobile ? '100%' : 300 }}
           onSearch={handleSearch}
           onChange={(e) => !e.target.value && setFilteredProducts(products)}
         />
@@ -87,6 +89,7 @@ const TotalStock = () => {
         columns={columns}
         rowKey="id"
         pagination={{ pageSize: 15 }}
+        scroll={{ x: 800 }}
         summary={(pageData) => {
           const totalQuantity = pageData.reduce((sum, item) => sum + item.quantity, 0);
           const totalValue = pageData.reduce((sum, item) => sum + (item.quantity * item.price), 0);

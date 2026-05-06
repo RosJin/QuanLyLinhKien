@@ -3,8 +3,10 @@ import { Table, Button, Modal, Form, Select, Input, InputNumber, Space, Popconfi
 import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, UploadOutlined, DeleteFilled } from '@ant-design/icons';
 import { getAllBankingSlips, addBankingSlip, updateBankingSlip, deleteBankingSlip, getAllRecipients, getAllInstallationOrders, getBankingSlipOrders, addBankingSlipOrder, deleteBankingSlipOrder } from '../utils/dbUtils';
 import dayjs from 'dayjs';
+import useMobile from '../hooks/useMobile';
 
 const BankingSlips = () => {
+  const isMobile = useMobile();
   const [slips, setSlips] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -185,7 +187,7 @@ const BankingSlips = () => {
       <div style={{ marginBottom: 16 }}>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Them phieu ngan hang</Button>
       </div>
-      <Table dataSource={slips} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table dataSource={slips} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
 
       <Modal
         title={editingSlip ? 'Sua phieu ngan hang' : 'Them phieu ngan hang'}
@@ -194,7 +196,7 @@ const BankingSlips = () => {
         onCancel={() => setIsModalOpen(false)}
         okText="Luu"
         cancelText="Huy"
-        width={800}
+        width={isMobile ? '95%' : 800}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="code" label="Ma phieu" rules={[{ required: true }]}>
@@ -284,7 +286,7 @@ const BankingSlips = () => {
         open={isDetailOpen}
         onCancel={() => { setIsDetailOpen(false); setDetailSlip(null); }}
         footer={null}
-        width={700}
+        width={isMobile ? '95%' : 700}
       >
         {detailSlip && (
           <div>
