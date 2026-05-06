@@ -154,25 +154,27 @@ const DropStock = () => {
   }));
 
   const columns = [
-    { title: "Ma phieu lap dat", dataIndex: "order_codes", key: "order_codes", ellipsis: true },
-    { title: "Ngay", dataIndex: "date", key: "date" },
-    { title: "So phieu", dataIndex: "total_orders", key: "total_orders" },
+    { title: "Ma phieu", dataIndex: "order_codes", key: "order_codes", ellipsis: true, width: isMobile ? 120 : 200 },
+    { title: "Ngay", dataIndex: "date", key: "date", width: isMobile ? 90 : 110 },
+    { title: "So phieu", dataIndex: "total_orders", key: "total_orders", width: isMobile ? 80 : 100 },
     {
-      title: "Tong tien",
+      title: "Tien",
       dataIndex: "total_amount",
       key: "total_amount",
+      width: isMobile ? 100 : 130,
       render: (val) => (val || 0).toLocaleString("vi-VN") + " d"
     },
     {
       title: "Trang thai",
       key: "status",
+      width: isMobile ? 90 : 120,
       render: (_, record) => getStatusTag(record)
     },
-    { title: "Ghi chu", dataIndex: "note", key: "note", ellipsis: true },
+    { title: "Ghi chu", dataIndex: "note", key: "note", ellipsis: true, width: isMobile ? 100 : 150 },
     {
       title: "Thao tac",
       key: "actions",
-      width: isMobile ? 100 : 250,
+      width: isMobile ? 90 : 250,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>{isMobile ? '' : 'Chi tiet'}</Button>

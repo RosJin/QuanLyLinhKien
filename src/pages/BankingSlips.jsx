@@ -61,16 +61,12 @@ const BankingSlips = () => {
 
   const handleImageUpload = (file) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      setImageUrl(e.target.result);
-    };
+    reader.onload = (e) => { setImageUrl(e.target.result); };
     reader.readAsDataURL(file);
     return false;
   };
 
-  const handleRemoveImage = () => {
-    setImageUrl(null);
-  };
+  const handleRemoveImage = () => { setImageUrl(null); };
 
   const handleAddOrderLink = async () => {
     if (!editingSlip) {
@@ -161,7 +157,7 @@ const BankingSlips = () => {
     },
     {
       title: 'Da doi soat',
-      key: 'reconciled',
+      key: 'reconced',
       render: (_, record) => {
         const status = getReconciliationStatus(record);
         return <Tag color={status.color}>{status.text}</Tag>;
@@ -169,8 +165,9 @@ const BankingSlips = () => {
     },
     { title: 'Ghi chu', dataIndex: 'note', key: 'note', ellipsis: true },
     {
-      title: 'Thao tac', key: 'actions',
-      width: isMobile ? 100 : 200,
+      title: 'Thao tac',
+      key: 'actions',
+      width: isMobile ? 90 : 200,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>{isMobile ? '' : 'Chi tiet'}</Button>

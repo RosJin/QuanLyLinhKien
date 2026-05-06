@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Input, Select, Space, Popconfirm, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { getAllRecipients, addRecipient, updateRecipient, deleteRecipient, searchRecipients } from '../utils/dbUtils';
@@ -56,24 +56,25 @@ const Recipients = () => {
   };
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code', key: 'code' },
-    { title: 'Tên', dataIndex: 'name', key: 'name' },
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100 },
+    { title: 'Tên', dataIndex: 'name', key: 'name', width: isMobile ? 120 : 200 },
     {
       title: 'Loại',
       dataIndex: 'type',
       key: 'type',
+      width: isMobile ? 60 : 80,
       render: (type) => (
-        <span>{type === 'customer' ? 'Khách hàng' : type === 'technician' ? 'Kỹ thuật viên' : type === 'collaborator' ? 'Cộng tác viên' : type}</span>
+        <span>{type === 'customer' ? 'Khách hàng' : type === 'technician' ? 'KTV' : type === 'collaborator' ? 'CTV' : type}</span>
       )
     },
-    { title: 'Số điện thoại', dataIndex: 'phone', key: 'phone' },
-    { title: 'Tỉnh/TP', dataIndex: 'province', key: 'province' },
-    { title: 'Khu vực', dataIndex: 'region', key: 'region' },
-    { title: 'Địa chỉ', dataIndex: 'address', key: 'address', ellipsis: true },
+    { title: 'SĐT', dataIndex: 'phone', key: 'phone', width: isMobile ? 100 : 120 },
+    { title: 'Tỉnh', dataIndex: 'province', key: 'province', width: isMobile ? 80 : 100 },
+    { title: 'Khu vực', dataIndex: 'region', key: 'region', width: isMobile ? 60 : 80 },
+    { title: 'Địa chỉ', dataIndex: 'address', key: 'address', ellipsis: true, width: isMobile ? 100 : 150 },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: isMobile ? 100 : 180,
+      width: isMobile ? 90 : 180,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sửa'}</Button>
@@ -133,8 +134,8 @@ const Recipients = () => {
           <Form.Item name="type" label="Loại" rules={[{ required: true, message: 'Vui lòng chọn loại' }]}>
             <Select placeholder="Chọn loại">
               <Select.Option value="customer">Khách hàng</Select.Option>
-              <Select.Option value="technician">Kỹ thuật viên</Select.Option>
-              <Select.Option value="collaborator">Cộng tác viên</Select.Option>
+              <Select.Option value="technician">KTV</Select.Option>
+              <Select.Option value="collaborator">CTV</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item name="phone" label="Số điện thoại">

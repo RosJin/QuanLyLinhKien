@@ -70,7 +70,7 @@ const AppLayout = () => {
   );
 
   return (
-    <Layout style={{ minHeight: "100vh" }}>
+    <Layout style={{ height: "100vh", overflow: "hidden" }}>
       {!isMobile && (
         <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed}>
           {renderMenu()}
@@ -87,8 +87,14 @@ const AppLayout = () => {
         {renderMenu()}
       </Drawer>
 
-      <Layout>
-        <Header style={{ padding: "0 16px", background: colorBgContainer, display: "flex", alignItems: "center" }}>
+      <Layout style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+        <Header style={{
+          padding: "0 16px",
+          background: colorBgContainer,
+          display: "flex",
+          alignItems: "center",
+          flexShrink: 0
+        }}>
           {isMobile && (
             <Button
               type="text"
@@ -101,7 +107,11 @@ const AppLayout = () => {
             Quan Ly Kho Linh Kien
           </h2>
         </Header>
-        <Content style={{ margin: isMobile ? 8 : 16 }}>
+        <Content style={{
+          margin: isMobile ? 8 : 16,
+          overflow: "auto",
+          flex: "1 1 0"
+        }}>
           <div style={{ padding: isMobile ? 12 : 24, background: colorBgContainer, borderRadius: borderRadiusLG, minHeight: 360 }}>
             <Outlet />
           </div>

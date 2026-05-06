@@ -31,13 +31,14 @@ const TotalStock = () => {
   };
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code', key: 'code', sorter: (a, b) => a.code.localeCompare(b.code) },
-    { title: 'Tên sản phẩm', dataIndex: 'name', key: 'name', sorter: (a, b) => a.name.localeCompare(b.name) },
-    { title: 'Danh mục', dataIndex: 'category', key: 'category' },
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100, sorter: (a, b) => a.code.localeCompare(b.code) },
+    { title: 'Tên sản phẩm', dataIndex: 'name', key: 'name', width: isMobile ? 120 : 200, sorter: (a, b) => a.name.localeCompare(b.name) },
+    { title: 'Danh mục', dataIndex: 'category', key: 'category', width: isMobile ? 100 : 150 },
     {
       title: 'Giá',
       dataIndex: 'price',
       key: 'price',
+      width: isMobile ? 100 : 130,
       render: (val) => val.toLocaleString('vi-VN') + ' đ',
       sorter: (a, b) => a.price - b.price
     },
@@ -45,6 +46,7 @@ const TotalStock = () => {
       title: 'Tồn kho',
       dataIndex: 'quantity',
       key: 'quantity',
+      width: isMobile ? 80 : 100,
       sorter: (a, b) => a.quantity - b.quantity,
       render: (val, record) => (
         <span style={{ color: val <= record.min_stock ? 'red' : 'black', fontWeight: val <= record.min_stock ? 'bold' : 'normal' }}>
@@ -52,16 +54,18 @@ const TotalStock = () => {
         </span>
       )
     },
-    { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock' },
+    { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock', width: isMobile ? 80 : 100 },
     {
       title: 'Giá trị tồn',
       key: 'total_value',
+      width: isMobile ? 100 : 130,
       render: (_, record) => (record.quantity * record.price).toLocaleString('vi-VN') + ' đ',
       sorter: (a, b) => (a.quantity * a.price) - (b.quantity * b.price)
     },
     {
       title: 'Trạng thái',
       key: 'status',
+      width: isMobile ? 100 : 120,
       render: (_, record) => (
         record.quantity <= record.min_stock ?
           <Tag color="red">Sắp hết</Tag> :

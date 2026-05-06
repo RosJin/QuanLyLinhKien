@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Select, Input, InputNumber, Space, Popconfirm, message, Card, Row, Col, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { getAllInstallationOrders, getInstallationOrderItems, addInstallationOrder, updateInstallationOrder, deleteInstallationOrder, getAllRecipients, getAllProducts, getAllCombos, getComboItems } from '../utils/dbUtils';
@@ -10,6 +10,7 @@ const InstallationOrders = () => {
   const isMobile = useMobile();
   const [orders, setOrders] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [recipients, setRecipients] = useState([]);
   const [products, setProducts] = useState([]);
@@ -21,10 +22,7 @@ const InstallationOrders = () => {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailItems, setDetailItems] = useState([]);
   const [form] = Form.useForm();
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  const [itemForm] = Form.useForm();
 
   const loadData = async () => {
     const [ordersData, recipientsData, productsData, combosData] = await Promise.all([
@@ -38,6 +36,8 @@ const InstallationOrders = () => {
     setProducts(productsData);
     setCombos(combosData);
   };
+
+  useEffect(() => { loadData(); }, []);
 
   const handleAdd = () => {
     setEditingOrder(null);
@@ -59,7 +59,6 @@ const InstallationOrders = () => {
       order_date: order.order_date,
       note: order.note
     });
-
     const items = await getInstallationOrderItems(order.id);
     const mappedItems = items.map(item => ({
       product_id: item.product_id,
@@ -67,7 +66,6 @@ const InstallationOrders = () => {
       price: item.price
     }));
     setOrderItems(mappedItems);
-
     setIsModalOpen(true);
   };
 
@@ -139,7 +137,6 @@ const InstallationOrders = () => {
         message.warning('Vui lòng thêm ít nhất một sản phẩm hoặc combo');
         return;
       }
-
       const allItems = [
         ...orderItems.map(item => ({
           product_id: item.product_id,
@@ -152,7 +149,6 @@ const InstallationOrders = () => {
           price: item.product?.price || 0
         })))
       ];
-
       if (editingOrder) {
         await updateInstallationOrder(editingOrder.id, {
           ...values,
@@ -168,7 +164,6 @@ const InstallationOrders = () => {
         }, allItems);
         message.success('Tạo phiếu lắp đặt thành công');
       }
-
       setIsModalOpen(false);
       loadData();
     } catch (error) {
@@ -195,17 +190,17 @@ const InstallationOrders = () => {
   };
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code', key: 'code' },
-    { title: 'Người nhận', key: 'recipient_name', render: (_, record) => record.recipient?.name },
-    { title: 'Loại', key: 'recipient_type', render: (_, record) => record.recipient?.type === 'technician' ? 'KTV' : record.recipient?.type === 'collaborator' ? 'CTV' : 'KH' },
-    { title: 'Ngày', dataIndex: 'order_date', key: 'order_date' },
-    { title: 'SL', dataIndex: 'total_quantity', key: 'total_quantity' },
-    { title: 'Giá trị', dataIndex: 'total_value', key: 'total_value', render: (val) => val?.toLocaleString('vi-VN') + ' đ' },
-    { title: 'Ghi chú', dataIndex: 'note', key: 'note', ellipsis: true },
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100 },
+    { title: 'Người nhận', key: 'recipient_name', width: isMobile ? 100 : 150, render: (_, record) => record.recipient?.name },
+    { title: 'Loại', key: 'recipient_type', width: isMobile ? 60 : 80, render: (_, record) => record.recipient?.type === 'technician' ? 'KTV' : record.recipient?.type === 'collaborator' ? 'CTV' : 'KH' },
+    { title: 'Ngày', dataIndex: 'order_date', key: 'order_date', width: isMobile ? 90 : 110 },
+    { title: 'SL', dataIndex: 'total_quantity', key: 'total_quantity', width: isMobile ? 60 : 80 },
+    { title: 'Giá trị', dataIndex: 'total_value', key: 'total_value', width: isMobile ? 100 : 130, render: (val) => val?.toLocaleString('vi-VN') + ' đ' },
+    { title: 'Ghi chú', dataIndex: 'note', key: 'note', ellipsis: true, width: isMobile ? 100 : 150 },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: isMobile ? 100 : 200,
+      width: isMobile ? 90 : 200,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sửa'}</Button>
@@ -218,10 +213,27 @@ const InstallationOrders = () => {
     }
   ];
 
+  const itemColumns = [
+    { title: 'Mã SP', key: 'code', width: isMobile ? 80 : 100, render: (_, r) => r.product?.code },
+    { title: 'Tên SP', key: 'name', width: isMobile ? 100 : 150, render: (_, r) => r.product?.name },
+    { title: 'SL', dataIndex: 'quantity', key: 'quantity', width: isMobile ? 60 : 80 },
+    { title: 'Giá lẻ', key: 'price', width: isMobile ? 100 : 130, render: (_, r) => r.product?.price?.toLocaleString('vi-VN') + ' đ' },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      width: isMobile ? 60 : 100,
+      render: (_, record) => (
+        <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />} onClick={() => handleDeleteItem(record.id)}>{isMobile ? '' : 'Xóa'}</Button>
+      )
+    }
+  ];
+
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Tạo phiếu lắp đặt</Button>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} style={isMobile ? { width: '100%' } : {}}>
+          Tạo phiếu lắp đặt
+        </Button>
       </div>
 
       <Table dataSource={orders} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
@@ -235,29 +247,25 @@ const InstallationOrders = () => {
         cancelText="Hủy"
         width={isMobile ? '95%' : 800}
       >
-        <Form form={form} layout="vertical" onValuesChange={(changedValues) => {
-          if (changedValues.combo_id !== undefined) {
-            handleComboChange(changedValues.combo_id);
-          }
-        }}>
-          <Form.Item name="code" label="Mã phiếu" rules={[{ required: true }]}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="code" label="Mã phiếu" rules={[{ required: true, message: 'Vui lòng nhập mã' }]}>
             <Input placeholder="Nhập mã phiếu" />
           </Form.Item>
-          <Form.Item name="recipient_id" label="Người nhận" rules={[{ required: true }]}>
+          <Form.Item name="recipient_id" label="Người nhận" rules={[{ required: true, message: 'Vui lòng chọn người nhận' }]}>
             <Select placeholder="Chọn người nhận" showSearch optionFilterProp="children">
               {recipients.map(r => <Select.Option key={r.id} value={r.id}>{r.code} - {r.name}</Select.Option>)}
             </Select>
           </Form.Item>
-          <Form.Item name="order_date" label="Ngày lắp đặt" rules={[{ required: true }]}>
+          <Form.Item name="order_date" label="Ngày lắp đặt" rules={[{ required: true, message: 'Vui lòng chọn ngày' }]}>
             <Input type="date" />
           </Form.Item>
           <Form.Item name="note" label="Ghi chú">
-            <Input.TextArea rows={2} />
+            <Input.TextArea rows={3} placeholder="Nhập ghi chú" />
           </Form.Item>
 
           <Card title="Sản phẩm & Combo" size="small">
             <div style={{ marginBottom: 16, padding: 16, background: '#fafafa', borderRadius: 8 }}>
-              <Row gutter={[8, 8]} align="middle" style={{ marginBottom: 8 }}>
+              <Row gutter={[8, 8]}>
                 <Col xs={24} sm={8}>
                   <Form.Item name="combo_id" style={{ marginBottom: 0 }}>
                     <Select
@@ -266,6 +274,7 @@ const InstallationOrders = () => {
                       showSearch
                       optionFilterProp="children"
                       style={{ width: '100%' }}
+                      onChange={handleComboChange}
                     >
                       {combos.map(c => (
                         <Select.Option key={c.id} value={c.id}>{c.code} - {c.name}</Select.Option>

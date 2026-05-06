@@ -90,7 +90,7 @@ const Combos = () => {
     {
       title: 'Thao tác',
       key: 'actions',
-      width: isMobile ? 100 : 180,
+      width: isMobile ? 90 : 180,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<PlusSquareOutlined />} onClick={() => handleManageItems(record)}>{isMobile ? '' : 'SP'}</Button>

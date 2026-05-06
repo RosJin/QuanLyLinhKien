@@ -63,21 +63,23 @@ const Products = () => {
   };
 
   const columns = [
-    { title: 'Mã', dataIndex: 'code', key: 'code', sorter: (a, b) => a.code.localeCompare(b.code) },
-    { title: 'Tên', dataIndex: 'name', key: 'name', sorter: (a, b) => a.name.localeCompare(b.name) },
-    { title: 'Danh mục', dataIndex: 'category', key: 'category' },
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100, sorter: (a, b) => a.code.localeCompare(b.code) },
+    { title: 'Tên', dataIndex: 'name', key: 'name', width: isMobile ? 120 : 200, sorter: (a, b) => a.name.localeCompare(b.name) },
+    { title: 'Danh mục', dataIndex: 'category', key: 'category', width: isMobile ? 100 : 150 },
     {
       title: 'Giá',
       dataIndex: 'price',
       key: 'price',
+      width: isMobile ? 100 : 130,
       render: (val) => val.toLocaleString('vi-VN') + ' đ',
       sorter: (a, b) => a.price - b.price
     },
-    { title: 'Tồn kho', dataIndex: 'quantity', key: 'quantity', sorter: (a, b) => a.quantity - b.quantity },
-    { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock' },
+    { title: 'Tồn kho', dataIndex: 'quantity', key: 'quantity', width: isMobile ? 80 : 100, sorter: (a, b) => a.quantity - b.quantity },
+    { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock', width: isMobile ? 80 : 100 },
     {
       title: 'Trạng thái',
       key: 'status',
+      width: isMobile ? 100 : 120,
       render: (_, record) => (
         record.quantity <= record.min_stock ?
           <Tag color="red">Sắp hết</Tag> :
@@ -87,17 +89,11 @@ const Products = () => {
     {
       title: 'Thao tác',
       key: 'actions',
-      width: isMobile ? 120 : 180,
+      width: isMobile ? 90 : 180,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sửa'}</Button>
-          <Popconfirm
-            title="Xóa sản phẩm"
-            description="Bạn có chắc muốn xóa?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Xóa"
-            cancelText="Hủy"
-          >
+          <Popconfirm title="Xóa sản phẩm" description="Bạn có chắc muốn xóa?" onConfirm={() => handleDelete(record.id)} okText="Xóa" cancelText="Hủy">
             <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />}>{isMobile ? '' : 'Xóa'}</Button>
           </Popconfirm>
         </Space>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Select, InputNumber, Input, Radio, Space, Tag, message, Typography, DatePicker, Popconfirm } from 'antd';
 import { PlusOutlined, ImportOutlined, ExportOutlined, EditOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
 import { getTransactions, getAllProducts, getAllRecipients, addTransaction, updateTransaction, deleteTransaction, getAllCombos, getComboItems, processComboTransaction } from '../utils/dbUtils';
@@ -27,7 +27,7 @@ const PhysicalStock = () => {
   const [filterType, setFilterType] = useState(null);
   const [filterDateRange, setFilterDateRange] = useState(null);
 
-  // Load static data (products, recipients, combos) once
+  // Load static data
   useEffect(() => {
     const loadStatic = async () => {
       const [prods, recips, cmb] = await Promise.all([
@@ -144,27 +144,28 @@ const PhysicalStock = () => {
   };
 
   const columns = [
-    { title: 'Ngày', dataIndex: 'created_at', key: 'created_at', render: (val) => dayjs(val).format('DD/MM/YYYY HH:mm') },
-    { title: 'Mã SP', key: 'product_code', render: (_, record) => record.product?.code },
-    { title: 'Tên SP', key: 'product_name', render: (_, record) => record.product?.name },
+    { title: 'Ngày', dataIndex: 'created_at', key: 'created_at', width: isMobile ? 90 : 110, render: (val) => val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '' },
+    { title: 'Mã SP', key: 'product_code', width: isMobile ? 80 : 100, render: (_, r) => r.product?.code || '' },
+    { title: 'Tên SP', key: 'product_name', width: isMobile ? 100 : 150, render: (_, r) => r.product?.name || '' },
     {
       title: 'Loại',
       dataIndex: 'type',
       key: 'type',
+      width: isMobile ? 60 : 80,
       render: (type) => (
         <Tag color={type === 'import' ? 'green' : 'blue'}>
           {type === 'import' ? 'Nhập' : 'Xuất'}
         </Tag>
       )
     },
-    { title: 'Số lượng', dataIndex: 'quantity', key: 'quantity' },
-    { title: 'Thành tiền', key: 'total', render: (_, record) => ((record.price ?? record.product?.price ?? 0) * (record.quantity || 0)).toLocaleString('vi-VN') + ' đ' },
-    { title: 'Ghi chú', dataIndex: 'note', key: 'note' },
-    { title: 'Người nhận', key: 'recipient_name', render: (_, record) => record.recipient?.name },
+    { title: 'SL', dataIndex: 'quantity', key: 'quantity', width: isMobile ? 50 : 70 },
+    { title: 'Thành tiền', key: 'total', width: isMobile ? 100 : 130, render: (_, r) => ((r.quantity || 0) * (r.price || r.product?.price || 0)).toLocaleString('vi-VN') + ' đ' },
+    { title: 'Ghi chú', dataIndex: 'note', key: 'note', ellipsis: true, width: isMobile ? 80 : 120 },
+    { title: 'Người nhận', key: 'recipient_name', width: isMobile ? 100 : 150, render: (_, r) => r.recipient?.name || '' },
     {
       title: 'Thao tác',
       key: 'actions',
-      width: isMobile ? 80 : 120,
+      width: isMobile ? 70 : 120,
       render: (_, record) => (
         <Space size="small" wrap>
           <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEditTransaction(record)} />
@@ -237,21 +238,13 @@ const PhysicalStock = () => {
             placeholder={['Từ ngày', 'Đến ngày']}
           />
 
-          <Button icon={<ClearOutlined />} onClick={handleResetFilters}>Xóa bộ lọc</Button>
+          <Button icon={<ClearOutlined />} onClick={handleResetFilters} style={isMobile ? { width: '100%' } : {}}>Xóa bộ lọc</Button>
         </Space>
       </div>
 
       <Table dataSource={transactions} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
 
-      <Modal
-        title={editingTransaction ? 'Sửa giao dịch' : (transType === 'import' ? 'Nhập kho' : 'Xuất kho')}
-        open={isModalOpen}
-        onOk={handleSubmit}
-        onCancel={() => { setIsModalOpen(false); setEditingTransaction(null); }}
-        okText={editingTransaction ? 'Cập nhật' : 'Lưu'}
-        cancelText="Hủy"
-        width={isMobile ? '95%' : 700}
-      >
+      <Modal title={editingTransaction ? 'Sửa giao dịch' : (transType === 'import' ? 'Nhập kho' : 'Xuất kho')} open={isModalOpen} onOk={handleSubmit} onCancel={() => { setIsModalOpen(false); setEditingTransaction(null); }} okText={editingTransaction ? 'Cập nhật' : 'Lưu'} cancelText="Hủy" width={isMobile ? '95%' : 700}>
         <Form form={form} layout="vertical">
           <Form.Item name="type" hidden><Input /></Form.Item>
 
@@ -323,7 +316,7 @@ const PhysicalStock = () => {
           </Form.Item>
 
           <Form.Item name="note" label="Ghi chú">
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={3} placeholder="Nhập ghi chú" />
           </Form.Item>
         </Form>
       </Modal>
