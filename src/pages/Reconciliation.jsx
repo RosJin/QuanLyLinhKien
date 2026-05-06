@@ -36,20 +36,21 @@ const Reconciliation = () => {
   };
 
   const buildReconciliationData = (dropStocksData, bankingSlipsData, recipientsData) => {
+    const allRecipients = recipientsData || [];
+    const techRecipients = allRecipients.filter(r => r.type === "technician" || r.type === "collaborator");
     const techMap = {};
-    recipientsData
-      .filter(r => r.type === "technician" || r.type === "collaborator")
-      .forEach(r => {
-        techMap[r.id] = {
-          recipient: r,
-          dropStockTotal: 0,
-          bankingTotal: 0,
-          dropStockCount: 0,
-          bankingCount: 0,
-          dropStockIds: [],
-          bankingIds: []
-        };
-      });
+
+    techRecipients.forEach(r => {
+      techMap[r.id] = {
+        recipient: r,
+        dropStockTotal: 0,
+        bankingTotal: 0,
+        dropStockCount: 0,
+        bankingCount: 0,
+        dropStockIds: [],
+        bankingIds: []
+      };
+    });
 
     (dropStocksData || []).forEach(ds => {
       if (!ds.grouped_by_technician) return;
@@ -95,6 +96,7 @@ const Reconciliation = () => {
   const handleFilter = async () => {
     let filteredDropStocks = dropStocks;
     let filteredBankingSlips = bankingSlips;
+    let filteredRecipients = recipients;
 
     if (dateRange && dateRange[0] && dateRange[1]) {
       const start = dateRange[0].startOf('day');
@@ -115,9 +117,10 @@ const Reconciliation = () => {
         return ds.grouped_by_technician.some(g => g.recipient?.id === selectedRecipient);
       });
       filteredBankingSlips = filteredBankingSlips.filter(slip => slip.recipient_id === selectedRecipient);
+      filteredRecipients = recipients.filter(r => r.id === selectedRecipient);
     }
 
-    buildReconciliationData(filteredDropStocks, filteredBankingSlips, recipients);
+    buildReconciliationData(filteredDropStocks, filteredBankingSlips, filteredRecipients);
   };
 
   const handleViewDetail = async (record) => {
