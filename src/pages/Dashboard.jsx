@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message } from 'antd';
-import { ShoppingOutlined, InboxOutlined, WarningOutlined, DollarOutlined } from '@ant-design/icons';
+import { ShoppingOutlined, InboxOutlined, WarningOutlined, DollarOutlined, PlusOutlined } from '@ant-design/icons';
 import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts } from '../utils/dbUtils';
 import db from '../db/database';
 import seedData from '../utils/seedData';
+import useMobile from '../hooks/useMobile';
 
 const Dashboard = () => {
+  const isMobile = useMobile();
   const [stats, setStats] = useState({
     total_products: 0,
     total_quantity: 0,
@@ -84,12 +86,12 @@ const Dashboard = () => {
       });
 
       const columns = [
-        { title: 'KTV/CTV', dataIndex: 'techName', key: 'techName', fixed: 'left', width: 200 },
+        { title: 'KTV/CTV', dataIndex: 'techName', key: 'techName', fixed: 'left', width: isMobile ? 120 : 200 },
         ...products.map(p => ({
-          title: p.code + ' - ' + p.name,
+          title: p.code,
           dataIndex: p.code,
           key: p.id,
-          width: 150,
+          width: isMobile ? 80 : 120,
           render: (val) => val || 0
         }))
       ];
@@ -115,28 +117,28 @@ const Dashboard = () => {
   };
 
   const lowStockColumns = [
-    { title: 'Mã', dataIndex: 'code', key: 'code' },
-    { title: 'Tên', dataIndex: 'name', key: 'name' },
-    { title: 'Danh mục', dataIndex: 'category', key: 'category' },
-    { title: 'Tồn kho', dataIndex: 'quantity', key: 'quantity' },
-    { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock' },
+    { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100 },
+    { title: 'Tên', dataIndex: 'name', key: 'name', width: isMobile ? 100 : 150 },
+    { title: 'Danh mục', dataIndex: 'category', key: 'category', width: isMobile ? 80 : 120 },
+    { title: 'Tồn kho', dataIndex: 'quantity', key: 'quantity', width: isMobile ? 60 : 80 },
+    { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock', width: isMobile ? 60 : 80 },
     {
       title: 'Trạng thái',
       key: 'status',
-      render: (_, record) => (
-        <Tag color="red">Sắp hết</Tag>
-      )
+      width: isMobile ? 70 : 100,
+      render: () => <Tag color="red">Sắp hết</Tag>
     }
   ];
 
   const categoryColumns = [
-    { title: 'Danh mục', dataIndex: 'category', key: 'category', render: (text) => text || 'Chưa phân loại' },
-    { title: 'Số lượng SP', dataIndex: 'count', key: 'count' },
-    { title: 'Tổng số lượng', dataIndex: 'total_qty', key: 'total_qty' },
+    { title: 'Danh mục', dataIndex: 'category', key: 'category', render: (text) => text || 'Chưa phân loại', width: isMobile ? 100 : 150 },
+    { title: 'Số lượng SP', dataIndex: 'count', key: 'count', width: isMobile ? 80 : 100 },
+    { title: 'Tổng SL', dataIndex: 'total_qty', key: 'total_qty', width: isMobile ? 80 : 100 },
     {
       title: 'Tổng giá trị',
       dataIndex: 'total_value',
       key: 'total_value',
+      width: isMobile ? 100 : 130,
       render: (val) => val.toLocaleString('vi-VN') + ' đ'
     }
   ];
@@ -144,61 +146,66 @@ const Dashboard = () => {
   const handleSeedData = async () => {
     try {
       await seedData();
-      message.success('Da tao du lieu mau!');
+      message.success('Đã tạo dữ liệu mẫu!');
       loadData();
     } catch (error) {
       console.error(error);
-      message.error('Loi tao du lieu');
+      message.error('Lỗi tạo dữ liệu');
     }
   };
 
   return (
     <div>
-      <Button type="primary" onClick={handleSeedData} style={{ marginBottom: 16 }}>Tao du lieu mau de test</Button>
-      <Row gutter={[16, 16]}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <Button type="primary" onClick={handleSeedData} style={isMobile ? { width: '100%' } : {}}>
+          Tạo dữ liệu mẫu để test
+        </Button>
+      </div>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card hoverable>
             <Statistic
               title="Tổng sản phẩm"
               value={stats.total_products}
-              prefix={<ShoppingOutlined />}
+              prefix={<ShoppingOutlined style={{ color: '#1890ff' }} />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card hoverable>
             <Statistic
               title="Tổng số lượng"
               value={stats.total_quantity}
-              prefix={<InboxOutlined />}
+              prefix={<InboxOutlined style={{ color: '#52c41a' }} />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card hoverable>
             <Statistic
               title="Tổng giá trị"
               value={stats.total_value}
               precision={0}
-              prefix={<DollarOutlined />}
+              prefix={<DollarOutlined style={{ color: '#faad14' }} />}
               suffix="đ"
               formatter={(val) => val.toLocaleString('vi-VN')}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card>
+          <Card hoverable>
             <Statistic
               title="Sắp hết hàng"
               value={stats.low_stock_count}
-              prefix={<WarningOutlined />}
-              valueStyle={{ color: stats.low_stock_count > 0 ? '#cf1322' : '#3f8600' }}
+              prefix={<WarningOutlined style={{ color: stats.low_stock_count > 0 ? '#f5222d' : '#52c41a' }} />}
+              valueStyle={{ color: stats.low_stock_count > 0 ? '#f5222d' : '#52c41a' }}
             />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} md={12}>
           <Card title="Sản phẩm sắp hết hàng" bordered={false}>
             <Table
@@ -207,6 +214,7 @@ const Dashboard = () => {
               rowKey="id"
               size="small"
               pagination={false}
+              scroll={{ x: 600 }}
             />
           </Card>
         </Col>
@@ -218,18 +226,19 @@ const Dashboard = () => {
               rowKey="category"
               size="small"
               pagination={false}
+              scroll={{ x: 500 }}
             />
           </Card>
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+      <Row gutter={[16, 16]}>
         <Col span={24}>
           <Card title="Linh kiện theo KTV/CTV" bordered={false}>
             <Table
               columns={techProductColumns}
               dataSource={techProductData}
-              scroll={{ x: Math.max(800, 200 + productList.length * 150) }}
+              scroll={{ x: Math.max(800, 200 + productList.length * 120) }}
               size="small"
               pagination={false}
               bordered
