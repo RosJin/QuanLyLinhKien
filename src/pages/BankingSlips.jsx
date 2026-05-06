@@ -170,12 +170,13 @@ const BankingSlips = () => {
     { title: 'Ghi chu', dataIndex: 'note', key: 'note', ellipsis: true },
     {
       title: 'Thao tac', key: 'actions',
+      width: isMobile ? 100 : 200,
       render: (_, record) => (
-        <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>Chi tiet</Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Sua</Button>
+        <Space size="small" wrap>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>{isMobile ? '' : 'Chi tiet'}</Button>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sua'}</Button>
           <Popconfirm title="Xoa phieu?" onConfirm={() => handleDelete(record.id)} okText="Xoa" cancelText="Huy">
-            <Button type="link" danger icon={<DeleteOutlined />}>Xoa</Button>
+            <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />}>{isMobile ? '' : 'Xoa'}</Button>
           </Popconfirm>
         </Space>
       )

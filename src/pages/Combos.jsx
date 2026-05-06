@@ -90,12 +90,13 @@ const Combos = () => {
     {
       title: 'Thao tác',
       key: 'actions',
+      width: isMobile ? 100 : 180,
       render: (_, record) => (
-        <Space>
-          <Button type="link" icon={<PlusSquareOutlined />} onClick={() => handleManageItems(record)}>SP</Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Sửa</Button>
+        <Space size="small" wrap>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<PlusSquareOutlined />} onClick={() => handleManageItems(record)}>{isMobile ? '' : 'SP'}</Button>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sửa'}</Button>
           <Popconfirm title="Xóa combo" description="Bạn có chắc muốn xóa?" onConfirm={() => handleDelete(record.id)} okText="Xóa" cancelText="Hủy">
-            <Button type="link" danger icon={<DeleteOutlined />}>Xóa</Button>
+            <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />}>{isMobile ? '' : 'Xóa'}</Button>
           </Popconfirm>
         </Space>
       )
@@ -110,8 +111,9 @@ const Combos = () => {
     {
       title: 'Thao tác',
       key: 'actions',
+      width: isMobile ? 60 : 100,
       render: (_, record) => (
-        <Button type="link" danger icon={<DeleteOutlined />} onClick={() => handleDeleteItem(record.id)}>Xóa</Button>
+        <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />} onClick={() => handleDeleteItem(record.id)}>{isMobile ? '' : 'Xóa'}</Button>
       )
     }
   ];

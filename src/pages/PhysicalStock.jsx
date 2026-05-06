@@ -164,11 +164,12 @@ const PhysicalStock = () => {
     {
       title: 'Thao tác',
       key: 'actions',
+      width: isMobile ? 80 : 120,
       render: (_, record) => (
-        <Space>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEditTransaction(record)} />
+        <Space size="small" wrap>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEditTransaction(record)} />
           <Popconfirm title="Xóa giao dịch?" onConfirm={() => handleDeleteTransaction(record.id)} okText="Xóa" cancelText="Hủy">
-            <Button type="link" danger icon={<DeleteOutlined />} />
+            <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
       )

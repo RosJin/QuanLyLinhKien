@@ -3,10 +3,12 @@ import { Table, Button, Modal, Form, DatePicker, Select, Space, Popconfirm, mess
 import { PlusOutlined, DeleteOutlined, EyeOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getAllDropStocks, getDropStockDetail, deleteDropStock, getAvailableInstallationOrders, createDropStock, updateDropStock, updateDropStockStatus } from "../utils/dbUtils";
+import useMobile from "../hooks/useMobile";
 
 const { Text } = Typography;
 
 const DropStock = () => {
+  const isMobile = useMobile();
   const [dropStocks, setDropStocks] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -170,15 +172,16 @@ const DropStock = () => {
     {
       title: "Thao tac",
       key: "actions",
+      width: isMobile ? 100 : 250,
       render: (_, record) => (
-        <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>Chi tiet</Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Sua</Button>
+        <Space size="small" wrap>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>{isMobile ? '' : 'Chi tiet'}</Button>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sua'}</Button>
           {!record.status || record.status === 'draft' ? (
-            <Button type="link" onClick={() => handleUpdateStatus(record.id, 'confirmed')}>Chot</Button>
+            <Button type="link" size={isMobile ? 'small' : 'middle'} onClick={() => handleUpdateStatus(record.id, 'confirmed')}>{isMobile ? 'C' : 'Chot'}</Button>
           ) : null}
           <Popconfirm title="Xoa?" onConfirm={() => handleDelete(record.id)} okText="Xoa" cancelText="Huy">
-            <Button type="link" danger icon={<DeleteOutlined />}>Xoa</Button>
+            <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />}>{isMobile ? '' : 'Xoa'}</Button>
           </Popconfirm>
         </Space>
       )
@@ -191,7 +194,7 @@ const DropStock = () => {
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Tao Drop Stock</Button>
       </div>
 
-      <Table dataSource={dropStocks} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} />
+      <Table dataSource={dropStocks} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
 
       <Modal
         title="Tao Drop Stock"
@@ -200,7 +203,7 @@ const DropStock = () => {
         onCancel={() => setIsModalOpen(false)}
         okText="Luu"
         cancelText="Huy"
-        width={900}
+        width={isMobile ? '95%' : 900}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
@@ -229,7 +232,7 @@ const DropStock = () => {
         onCancel={() => setIsEditOpen(false)}
         okText="Luu"
         cancelText="Huy"
-        width={900}
+        width={isMobile ? '95%' : 900}
       >
         <Form form={editForm} layout="vertical">
           <Form.Item name="date" label="Ngay" rules={[{ required: true }]}>
@@ -256,7 +259,7 @@ const DropStock = () => {
         open={isDetailOpen}
         onCancel={() => { setIsDetailOpen(false); setDetail(null); }}
         footer={null}
-        width={900}
+        width={isMobile ? '95%' : 900}
       >
         {detail && (
           <div>

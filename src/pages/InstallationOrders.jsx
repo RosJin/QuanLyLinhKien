@@ -205,12 +205,13 @@ const InstallationOrders = () => {
     {
       title: 'Thao tác',
       key: 'actions',
+      width: isMobile ? 100 : 200,
       render: (_, record) => (
-        <Space>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Sửa</Button>
-          <Button type="link" onClick={() => handleViewDetail(record)}>Chi tiết</Button>
+        <Space size="small" wrap>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sửa'}</Button>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} onClick={() => handleViewDetail(record)}>{isMobile ? '' : 'Chi tiết'}</Button>
           <Popconfirm title="Xóa phiếu?" onConfirm={() => handleDelete(record.id)} okText="Xóa" cancelText="Hủy">
-            <Button type="link" danger icon={<DeleteOutlined />}>Xóa</Button>
+            <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />}>{isMobile ? '' : 'Xóa'}</Button>
           </Popconfirm>
         </Space>
       )

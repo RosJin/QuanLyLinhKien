@@ -73,9 +73,10 @@ const Recipients = () => {
     {
       title: 'Thao tác',
       key: 'actions',
+      width: isMobile ? 100 : 180,
       render: (_, record) => (
-        <Space>
-          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>Sửa</Button>
+        <Space size="small" wrap>
+          <Button type="link" size={isMobile ? 'small' : 'middle'} icon={<EditOutlined />} onClick={() => handleEdit(record)}>{isMobile ? '' : 'Sửa'}</Button>
           <Popconfirm
             title="Xóa người nhận"
             description="Bạn có chắc muốn xóa?"
@@ -83,7 +84,7 @@ const Recipients = () => {
             okText="Xóa"
             cancelText="Hủy"
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>Xóa</Button>
+            <Button type="link" danger size={isMobile ? 'small' : 'middle'} icon={<DeleteOutlined />}>{isMobile ? '' : 'Xóa'}</Button>
           </Popconfirm>
         </Space>
       )
