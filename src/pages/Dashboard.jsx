@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message } from 'antd';
 import { ShoppingOutlined, InboxOutlined, WarningOutlined, DollarOutlined, PlusOutlined } from '@ant-design/icons';
-import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts } from '../utils/dbUtils';
-import db from '../db/database';
+import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts, getTransactions, getAllInstallationOrders, getAllInstallationOrderItems } from '../utils/dbUtils';
 import seedData from '../utils/seedData';
 import useMobile from '../hooks/useMobile';
 
@@ -37,15 +36,15 @@ const Dashboard = () => {
       const productCodeMap = {};
       products.forEach(p => { productCodeMap[p.id] = p.code; });
 
-      // 1. Exports TO KTV (transactions with type='export' and recipient_id)
-      const exportTransactions = await db.transactions
-        .where('type').equals('export')
-        .and(t => t.recipient_id && techs.some(tech => tech.id === t.recipient_id))
-        .toArray();
+      // 1. Get export transactions for techs
+      const allExportTransactions = await getTransactions({ type: 'export' });
+      const exportTransactions = allExportTransactions.filter(
+        t => t.recipient_id && techs.some(tech => tech.id === t.recipient_id)
+      );
 
-      // 2. Usage by KTV (installation orders)
-      const orders = await db.installation_orders.toArray();
-      const items = await db.installation_order_items.toArray();
+      // 2. Get orders and items
+      const orders = await getAllInstallationOrders();
+      const items = await getAllInstallationOrderItems();
 
       // Initialize matrix
       const matrix = {};
@@ -251,3 +250,5 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+
+

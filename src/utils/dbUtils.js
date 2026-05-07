@@ -1,507 +1,546 @@
-import db from '../db/database';
+import supabase from './supabaseClient';
 
 // ==================== PRODUCTS ====================
 export const addProduct = async (product) => {
-  const id = await db.products.add({
+  const { data, error } = await supabase.from('products').insert({
     ...product,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
-  });
-  return id;
+  }).select('id').single();
+  if (error) throw error;
+  return data.id;
 };
 
 export const updateProduct = async (id, product) => {
-  await db.products.update(id, { ...product, updated_at: new Date().toISOString() });
+  const { error } = await supabase.from('products').update({
+    ...product,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) throw error;
 };
 
 export const deleteProduct = async (id) => {
-  await db.products.delete(id);
+  const { error } = await supabase.from('products').delete().eq('id', id);
+  if (error) throw error;
 };
 
 export const getAllProducts = async () => {
-  return await db.products.orderBy('name').toArray();
+  const { data, error } = await supabase.from('products').select('*').order('name');
+  if (error) throw error;
+  return data || [];
 };
 
 export const getProductById = async (id) => {
-  return await db.products.get(id);
+  const { data, error } = await supabase.from('products').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data;
 };
 
 export const searchProducts = async (keyword) => {
-  return await db.products
-    .filter(p => p.code.includes(keyword) || p.name.includes(keyword) || (p.category && p.category.includes(keyword)))
-    .toArray();
+  const { data, error } = await supabase.from('products').select('*').or(`code.ilike.%${keyword}%,name.ilike.%${keyword}%,category.ilike.%${keyword}%`).order('name');
+  if (error) throw error;
+  return data || [];
 };
 
 // ==================== TRANSACTIONS ====================
 export const addTransaction = async (transaction) => {
   const { product_id, type, quantity, price, note, recipient_id } = transaction;
 
-  await db.transaction('rw', db.products, db.transactions, async () => {
-    const product = await db.products.get(product_id);
-    await db.transactions.add({
-      product_id,
-      type,
-      quantity,
-      price: price ?? product.price ?? 0,
-      note,
-      recipient_id,
-      created_at: new Date().toISOString()
-    });
+  // Get current product
+  const product = await getProductById(product_id);
+  if (!product) throw new Error('Khong tim thay san pham');
 
-    if (type === 'import') {
-      await db.products.update(product_id, {
-        quantity: product.quantity + quantity,
-        updated_at: new Date().toISOString()
-      });
-    } else {
-      await db.products.update(product_id, {
-        quantity: product.quantity - quantity,
-        updated_at: new Date().toISOString()
-      });
-    }
+  // Calculate new quantity
+  const newQuantity = type === 'import'
+    ? product.quantity + quantity
+    : product.quantity - quantity;
+
+  // Insert transaction
+  const { error: transError } = await supabase.from('transactions').insert({
+    product_id,
+    type,
+    quantity,
+    price: price ?? product.price ?? 0,
+    note,
+    recipient_id,
+    created_at: new Date().toISOString()
   });
+  if (transError) throw transError;
+
+  // Update product quantity
+  const { error: prodError } = await supabase.from('products').update({
+    quantity: newQuantity,
+    updated_at: new Date().toISOString()
+  }).eq('id', product_id);
+  if (prodError) throw prodError;
 };
 
 export const updateTransaction = async (id, newValues) => {
-  await db.transaction('rw', db.products, db.transactions, async () => {
-    const oldTrans = await db.transactions.get(id);
-    if (!oldTrans) throw new Error('Khong tim thay giao dich');
+  // Get old transaction
+  const { data: oldTrans, error: oldError } = await supabase.from('transactions').select('*').eq('id', id).single();
+  if (oldError) throw oldError;
+  if (!oldTrans) throw new Error('Khong tim thay giao dich');
 
-    const oldProduct = await db.products.get(oldTrans.product_id);
-    if (oldTrans.type === 'import') {
-      await db.products.update(oldTrans.product_id, {
-        quantity: oldProduct.quantity - oldTrans.quantity,
-        updated_at: new Date().toISOString()
-      });
-    } else {
-      await db.products.update(oldTrans.product_id, {
-        quantity: oldProduct.quantity + oldTrans.quantity,
-        updated_at: new Date().toISOString()
-      });
-    }
+  // Revert old transaction effect on product
+  const oldProduct = await getProductById(oldTrans.product_id);
+  if (oldProduct) {
+    const revertQuantity = oldTrans.type === 'import'
+      ? oldProduct.quantity - oldTrans.quantity
+      : oldProduct.quantity + oldTrans.quantity;
 
-    const { product_id, type, quantity, price, note, recipient_id } = newValues;
-    const targetProduct = await db.products.get(product_id);
-    if (!targetProduct) throw new Error('Khong tim thay san pham');
-
-    await db.transactions.update(id, {
-      product_id,
-      type,
-      quantity,
-      price: price ?? targetProduct.price ?? 0,
-      note,
-      recipient_id,
+    await supabase.from('products').update({
+      quantity: revertQuantity,
       updated_at: new Date().toISOString()
-    });
+    }).eq('id', oldTrans.product_id);
+  }
 
-    if (type === 'import') {
-      await db.products.update(product_id, {
-        quantity: targetProduct.quantity + quantity,
-        updated_at: new Date().toISOString()
-      });
-    } else {
-      await db.products.update(product_id, {
-        quantity: targetProduct.quantity - quantity,
-        updated_at: new Date().toISOString()
-      });
-    }
-  });
+  // Apply new transaction
+  const { product_id, type, quantity, price, note, recipient_id } = newValues;
+  const targetProduct = await getProductById(product_id);
+  if (!targetProduct) throw new Error('Khong tim thay san pham');
+
+  const newQuantity = type === 'import'
+    ? targetProduct.quantity + quantity
+    : targetProduct.quantity - quantity;
+
+  // Update transaction
+  const { error: updateError } = await supabase.from('transactions').update({
+    product_id,
+    type,
+    quantity,
+    price: price ?? targetProduct.price ?? 0,
+    note,
+    recipient_id,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (updateError) throw updateError;
+
+  // Update product with new quantity
+  const { error: prodError } = await supabase.from('products').update({
+    quantity: newQuantity,
+    updated_at: new Date().toISOString()
+  }).eq('id', product_id);
+  if (prodError) throw prodError;
 };
 
 export const deleteTransaction = async (id) => {
-  await db.transaction('rw', db.products, db.transactions, async () => {
-    const trans = await db.transactions.get(id);
-    if (!trans) return;
+  const { data: trans, error: getError } = await supabase.from('transactions').select('*').eq('id', id).single();
+  if (getError) throw getError;
+  if (!trans) return;
 
-    const product = await db.products.get(trans.product_id);
-    if (trans.type === 'import') {
-      await db.products.update(trans.product_id, {
-        quantity: product.quantity - trans.quantity,
-        updated_at: new Date().toISOString()
-      });
-    } else {
-      await db.products.update(trans.product_id, {
-        quantity: product.quantity + trans.quantity,
-        updated_at: new Date().toISOString()
-      });
-    }
+  // Revert effect on product
+  const product = await getProductById(trans.product_id);
+  if (product) {
+    const revertQuantity = trans.type === 'import'
+      ? product.quantity - trans.quantity
+      : product.quantity + trans.quantity;
 
-    await db.transactions.delete(id);
-  });
+    await supabase.from('products').update({
+      quantity: revertQuantity,
+      updated_at: new Date().toISOString()
+    }).eq('id', trans.product_id);
+  }
+
+  // Delete transaction
+  const { error: deleteError } = await supabase.from('transactions').delete().eq('id', id);
+  if (deleteError) throw deleteError;
 };
 
 export const getTransactions = async (filters = {}) => {
-  let query = db.transactions;
+  let query = supabase.from('transactions').select('*, product:products(*), recipient:recipients(*)');
 
   if (filters.product_id) {
-    query = query.where('product_id').equals(filters.product_id);
-  }
-
-  let transactions = await query.toArray();
-
-  if (filters.start_date) {
-    transactions = transactions.filter(t => t.created_at >= filters.start_date);
-  }
-  if (filters.end_date) {
-    transactions = transactions.filter(t => t.created_at <= filters.end_date);
+    query = query.eq('product_id', filters.product_id);
   }
   if (filters.recipient_id) {
-    transactions = transactions.filter(t => t.recipient_id === filters.recipient_id);
+    query = query.eq('recipient_id', filters.recipient_id);
   }
   if (filters.type) {
-    transactions = transactions.filter(t => t.type === filters.type);
+    query = query.eq('type', filters.type);
+  }
+  if (filters.start_date) {
+    query = query.gte('created_at', filters.start_date);
+  }
+  if (filters.end_date) {
+    query = query.lte('created_at', filters.end_date);
   }
 
-  transactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  const products = await db.products.toArray();
-  const recipients = await db.recipients.toArray();
-  const productMap = {};
-  const recipientMap = {};
-  products.forEach(p => productMap[p.id] = p);
-  recipients.forEach(r => recipientMap[r.id] = r);
-
-  return transactions.map(t => ({
-    ...t,
-    product: productMap[t.product_id],
-    recipient: recipientMap[t.recipient_id]
-  }));
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 };
 
 // ==================== EXPORT TO RECIPIENT (KTV/CTV) ====================
 export const exportToRecipient = async (recipient_id, items, note = '') => {
-  return await db.transaction('rw', db.products, db.transactions, async () => {
-    for (const item of items) {
-      const product = await db.products.get(item.product_id);
-      if (!product) throw new Error('Khong tim thay san pham: ' + item.product_id);
-      await db.products.update(item.product_id, {
-        quantity: product.quantity - item.quantity,
-        updated_at: new Date().toISOString()
-      });
-      await db.transactions.add({
-        product_id: item.product_id,
-        type: 'export',
-        quantity: item.quantity,
-        price: item.price || product.price || 0,
-        note: note || 'Xuat cho KTV/CTV',
-        recipient_id,
-        created_at: new Date().toISOString()
-      });
-    }
-  });
+  for (const item of items) {
+    const product = await getProductById(item.product_id);
+    if (!product) throw new Error('Khong tim thay san pham: ' + item.product_id);
+
+    const newQuantity = product.quantity - item.quantity;
+    await supabase.from('products').update({
+      quantity: newQuantity,
+      updated_at: new Date().toISOString()
+    }).eq('id', item.product_id);
+
+    await supabase.from('transactions').insert({
+      product_id: item.product_id,
+      type: 'export',
+      quantity: item.quantity,
+      price: item.price || product.price || 0,
+      note: note || 'Xuat cho KTV/CTV',
+      recipient_id,
+      created_at: new Date().toISOString()
+    });
+  }
 };
 
 // ==================== RECIPIENTS ====================
 export const addRecipient = async (recipient) => {
-  return await db.recipients.add({
+  const { data, error } = await supabase.from('recipients').insert({
     ...recipient,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
-  });
+  }).select('id').single();
+  if (error) throw error;
+  return data.id;
 };
 
 export const updateRecipient = async (id, recipient) => {
-  await db.recipients.update(id, { ...recipient, updated_at: new Date().toISOString() });
+  const { error } = await supabase.from('recipients').update({
+    ...recipient,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) throw error;
 };
 
 export const deleteRecipient = async (id) => {
-  await db.recipients.delete(id);
+  const { error } = await supabase.from('recipients').delete().eq('id', id);
+  if (error) throw error;
 };
 
 export const getAllRecipients = async () => {
-  return await db.recipients.orderBy('name').toArray();
+  const { data, error } = await supabase.from('recipients').select('*').order('name');
+  if (error) throw error;
+  return data || [];
 };
 
 export const getRecipientById = async (id) => {
-  return await db.recipients.get(id);
+  const { data, error } = await supabase.from('recipients').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data;
 };
 
 export const getRecipientsByType = async (type) => {
-  return await db.recipients.where('type').equals(type).toArray();
+  const { data, error } = await supabase.from('recipients').select('*').eq('type', type);
+  if (error) throw error;
+  return data || [];
 };
 
 export const searchRecipients = async (keyword) => {
-  return await db.recipients
-    .filter(r => r.code.includes(keyword) || r.name.includes(keyword) || (r.phone && r.phone.includes(keyword)) || (r.province && r.province.includes(keyword)))
-    .toArray();
+  const { data, error } = await supabase.from('recipients').select('*').or(`code.ilike.%${keyword}%,name.ilike.%${keyword}%,phone.ilike.%${keyword}%,province.ilike.%${keyword}%`);
+  if (error) throw error;
+  return data || [];
 };
 
 // ==================== COMBOS ====================
 export const addCombo = async (combo) => {
-  return await db.combos.add({
+  const { data, error } = await supabase.from('combos').insert({
     ...combo,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
-  });
+  }).select('id').single();
+  if (error) throw error;
+  return data.id;
 };
 
 export const updateCombo = async (id, combo) => {
-  await db.combos.update(id, { ...combo, updated_at: new Date().toISOString() });
+  const { error } = await supabase.from('combos').update({
+    ...combo,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) throw error;
 };
 
 export const deleteCombo = async (id) => {
-  await db.transaction('rw', db.combos, db.combo_items, async () => {
-    await db.combo_items.where('combo_id').equals(id).delete();
-    await db.combos.delete(id);
-  });
+  // Delete combo items first (cascade should handle this, but being explicit)
+  await supabase.from('combo_items').delete().eq('combo_id', id);
+  const { error } = await supabase.from('combos').delete().eq('id', id);
+  if (error) throw error;
 };
 
 export const getAllCombos = async () => {
-  return await db.combos.orderBy('name').toArray();
+  const { data, error } = await supabase.from('combos').select('*').order('name');
+  if (error) throw error;
+  return data || [];
 };
 
 export const getComboById = async (id) => {
-  return await db.combos.get(id);
+  const { data, error } = await supabase.from('combos').select('*').eq('id', id).single();
+  if (error) throw error;
+  return data;
 };
 
 export const searchCombos = async (keyword) => {
-  return await db.combos
-    .filter(c => c.code.includes(keyword) || c.name.includes(keyword))
-    .toArray();
+  const { data, error } = await supabase.from('combos').select('*').or(`code.ilike.%${keyword}%,name.ilike.%${keyword}%`);
+  if (error) throw error;
+  return data || [];
 };
 
 export const addComboItem = async (item) => {
-  return await db.combo_items.add({ ...item, created_at: new Date().toISOString() });
+  const { error } = await supabase.from('combo_items').insert({
+    ...item,
+    created_at: new Date().toISOString()
+  });
+  if (error) throw error;
 };
 
 export const updateComboItem = async (id, quantity) => {
-  await db.combo_items.update(id, { quantity });
+  const { error } = await supabase.from('combo_items').update({ quantity }).eq('id', id);
+  if (error) throw error;
 };
 
 export const deleteComboItem = async (id) => {
-  await db.combo_items.delete(id);
+  const { error } = await supabase.from('combo_items').delete().eq('id', id);
+  if (error) throw error;
 };
 
 export const getComboItems = async (comboId) => {
-  const items = await db.combo_items.where('combo_id').equals(comboId).toArray();
-  const products = await db.products.toArray();
-  const productMap = {};
-  products.forEach(p => productMap[p.id] = p);
-  return items.map(item => ({ ...item, product: productMap[item.product_id] }));
+  const { data, error } = await supabase.from('combo_items').select('*, product:products(*)').eq('combo_id', comboId);
+  if (error) throw error;
+  return data || [];
 };
 
 export const processComboTransaction = async (combo_id, type, quantity_multiplier = 1, note = '', recipient_id = null) => {
   const items = await getComboItems(combo_id);
 
-  await db.transaction('rw', db.products, db.transactions, async () => {
-    for (const item of items) {
-      const product = await db.products.get(item.product_id);
-      const qty = item.quantity * quantity_multiplier;
+  for (const item of items) {
+    const product = await getProductById(item.product_id);
+    if (!product) continue;
 
-      await db.transactions.add({
-        product_id: item.product_id,
-        type,
-        quantity: qty,
-        price: item.product?.price || 0,
-        note: note || `Combo: ${combo_id}`,
-        recipient_id,
-        created_at: new Date().toISOString()
-      });
+    const qty = item.quantity * quantity_multiplier;
 
-      if (type === 'import') {
-        await db.products.update(item.product_id, {
-          quantity: product.quantity + qty,
-          updated_at: new Date().toISOString()
-        });
-      } else {
-        await db.products.update(item.product_id, {
-          quantity: product.quantity - qty,
-          updated_at: new Date().toISOString()
-        });
-      }
-    }
-  });
+    await supabase.from('transactions').insert({
+      product_id: item.product_id,
+      type,
+      quantity: qty,
+      price: item.product?.price || 0,
+      note: note || `Combo: ${combo_id}`,
+      recipient_id,
+      created_at: new Date().toISOString()
+    });
+
+    const newQuantity = type === 'import'
+      ? product.quantity + qty
+      : product.quantity - qty;
+
+    await supabase.from('products').update({
+      quantity: newQuantity,
+      updated_at: new Date().toISOString()
+    }).eq('id', item.product_id);
+  }
 };
 
 // ==================== INSTALLATION ORDERS ====================
 export const addInstallationOrder = async (order, items) => {
-  return await db.transaction('rw', db.installation_orders, db.installation_order_items, async () => {
-    const orderId = await db.installation_orders.add({
-      ...order,
+  const { data: orderData, error: orderError } = await supabase.from('installation_orders').insert({
+    ...order,
+    created_at: new Date().toISOString()
+  }).select('id').single();
+  if (orderError) throw orderError;
+
+  const orderId = orderData.id;
+
+  for (const item of items) {
+    await supabase.from('installation_order_items').insert({
+      order_id: orderId,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
       created_at: new Date().toISOString()
     });
+  }
 
-    for (const item of items) {
-      await db.installation_order_items.add({
-        order_id: orderId,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price,
-        created_at: new Date().toISOString()
-      });
-    }
-
-    return orderId;
-  });
+  return orderId;
 };
 
 export const deleteInstallationOrder = async (orderId) => {
-  await db.transaction('rw', db.installation_orders, db.installation_order_items, async () => {
-    await db.installation_order_items.where('order_id').equals(orderId).delete();
-    await db.installation_orders.delete(orderId);
-  });
+  await supabase.from('installation_order_items').delete().eq('order_id', orderId);
+  await supabase.from('installation_orders').delete().eq('id', orderId);
 };
 
 export const updateInstallationOrder = async (orderId, order, items) => {
-  return await db.transaction('rw', db.installation_orders, db.installation_order_items, async () => {
-    await db.installation_orders.update(orderId, {
-      ...order,
-      updated_at: new Date().toISOString()
+  const { error: updateError } = await supabase.from('installation_orders').update({
+    ...order,
+    updated_at: new Date().toISOString()
+  }).eq('id', orderId);
+  if (updateError) throw updateError;
+
+  // Delete old items
+  await supabase.from('installation_order_items').delete().eq('order_id', orderId);
+
+  // Insert new items
+  for (const item of items) {
+    await supabase.from('installation_order_items').insert({
+      order_id: orderId,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.price,
+      created_at: new Date().toISOString()
     });
-
-    await db.installation_order_items.where('order_id').equals(orderId).delete();
-
-    for (const item of items) {
-      await db.installation_order_items.add({
-        order_id: orderId,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price,
-        created_at: new Date().toISOString()
-      });
-    }
-  });
+  }
 };
 
 export const getAllInstallationOrders = async () => {
-  const orders = await db.installation_orders.orderBy('order_date').reverse().toArray();
-  const recipients = await db.recipients.toArray();
-  const recipientMap = {};
-  recipients.forEach(r => recipientMap[r.id] = r);
-  return orders.map(o => ({ ...o, recipient: recipientMap[o.recipient_id] }));
+  const { data: orders, error: ordersError } = await supabase.from('installation_orders').select('*, recipient:recipients(*)').order('order_date', { ascending: false });
+  if (ordersError) throw ordersError;
+  return orders || [];
 };
 
 export const getInstallationOrderItems = async (orderId) => {
-  const items = await db.installation_order_items.where('order_id').equals(orderId).toArray();
-  const products = await db.products.toArray();
-  const productMap = {};
-  products.forEach(p => productMap[p.id] = p);
-  return items.map(item => ({ ...item, product: productMap[item.product_id] }));
+  const { data, error } = await supabase.from('installation_order_items').select('*, product:products(*)').eq('order_id', orderId);
+  if (error) throw error;
+  return data || [];
+};
+
+export const getAllInstallationOrderItems = async () => {
+  const { data, error } = await supabase.from('installation_order_items').select('*, product:products(*)');
+  if (error) throw error;
+  return data || [];
 };
 
 // ==================== BANKING SLIPS ====================
 export const addBankingSlip = async (slip) => {
-  return await db.banking_slips.add({
+  const { data, error } = await supabase.from('banking_slips').insert({
     ...slip,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
-  });
+  }).select('id').single();
+  if (error) throw error;
+  return data.id;
 };
 
 export const updateBankingSlip = async (id, slip) => {
-  await db.banking_slips.update(id, { ...slip, updated_at: new Date().toISOString() });
+  const { error } = await supabase.from('banking_slips').update({
+    ...slip,
+    updated_at: new Date().toISOString()
+  }).eq('id', id);
+  if (error) throw error;
 };
 
 export const deleteBankingSlip = async (id) => {
-  await db.transaction('rw', db.banking_slips, db.banking_slip_orders, async () => {
-    await db.banking_slip_orders.where('banking_slip_id').equals(id).delete();
-    await db.banking_slips.delete(id);
-  });
+  await supabase.from('banking_slip_orders').delete().eq('banking_slip_id', id);
+  const { error } = await supabase.from('banking_slips').delete().eq('id', id);
+  if (error) throw error;
 };
 
 export const getAllBankingSlips = async () => {
-  const slips = await db.banking_slips.orderBy('transfer_date').reverse().toArray();
-  const recipients = await db.recipients.toArray();
-  const recipientMap = {};
-  recipients.forEach(r => recipientMap[r.id] = r);
-  return slips.map(s => ({ ...s, recipient: recipientMap[s.recipient_id] }));
+  const { data, error } = await supabase.from('banking_slips').select('*, recipient:recipients(*)').order('transfer_date', { ascending: false });
+  if (error) throw error;
+  return data || [];
 };
 
 export const addBankingSlipOrder = async (slipId, orderId) => {
-  return await db.banking_slip_orders.add({
+  const { error } = await supabase.from('banking_slip_orders').insert({
     banking_slip_id: slipId,
     installation_order_id: orderId,
     created_at: new Date().toISOString()
   });
+  if (error) throw error;
 };
 
 export const getBankingSlipOrders = async (slipId) => {
-  const bso = await db.banking_slip_orders.where('banking_slip_id').equals(slipId).toArray();
-  const orders = await db.installation_orders.toArray();
-  const orderMap = {};
-  orders.forEach(o => orderMap[o.id] = o);
-  const recipients = await db.recipients.toArray();
-  const recipientMap = {};
-  recipients.forEach(r => recipientMap[r.id] = r);
-  return bso.map(item => ({
+  const { data, error } = await supabase.from('banking_slip_orders').select(`
+    *,
+    order:installation_orders(
+      *,
+      recipient:recipients(*)
+    )
+  `).eq('banking_slip_id', slipId);
+  if (error) throw error;
+  return (data || []).map(item => ({
     ...item,
-    order: { ...orderMap[item.installation_order_id], recipient: recipientMap[orderMap[item.installation_order_id]?.recipient_id] }
+    order: item.order
   }));
 };
 
 export const deleteBankingSlipOrder = async (id) => {
-  await db.banking_slip_orders.delete(id);
+  const { error } = await supabase.from('banking_slip_orders').delete().eq('id', id);
+  if (error) throw error;
 };
 
 // ==================== DROP STOCKS ====================
 export const createDropStock = async (dropStock, installationOrderIds) => {
-  return await db.transaction('rw', db.drop_stocks, db.drop_stock_orders, async () => {
-    const dropStockId = await db.drop_stocks.add({
-      date: dropStock.date,
-      note: dropStock.note || '',
+  const { data, error } = await supabase.from('drop_stocks').insert({
+    date: dropStock.date,
+    note: dropStock.note || '',
+    created_at: new Date().toISOString()
+  }).select('id').single();
+  if (error) throw error;
+
+  const dropStockId = data.id;
+
+  for (const orderId of installationOrderIds) {
+    await supabase.from('drop_stock_orders').insert({
+      drop_stock_id: dropStockId,
+      installation_order_id: orderId,
       created_at: new Date().toISOString()
     });
+  }
 
-    for (const orderId of installationOrderIds) {
-      await db.drop_stock_orders.add({
-        drop_stock_id: dropStockId,
-        installation_order_id: orderId,
-        created_at: new Date().toISOString()
-      });
-    }
-
-    return dropStockId;
-  });
+  return dropStockId;
 };
 
 export const getAllDropStocks = async () => {
-  const dropStocks = await db.drop_stocks.orderBy('date').reverse().toArray();
+  const { data: dropStocks, error } = await supabase.from('drop_stocks').select('*').order('date', { ascending: false });
+  if (error) throw error;
 
   const result = [];
-  for (const ds of dropStocks) {
+  for (const ds of (dropStocks || [])) {
     const detail = await getDropStockDetail(ds.id);
-    result.push(detail);
+    if (detail) result.push(detail);
   }
 
-  return result.filter(r => r !== null);
+  return result;
 };
 
 export const getDropStockDetail = async (dropStockId) => {
-  const dropStock = await db.drop_stocks.get(dropStockId);
+  const { data: dropStock, error } = await supabase.from('drop_stocks').select('*').eq('id', dropStockId).single();
+  if (error) throw error;
   if (!dropStock) return null;
 
-  const links = await db.drop_stock_orders.where('drop_stock_id').equals(dropStockId).toArray();
-  const orderIds = links.map(l => l.installation_order_id);
+  const { data: links, error: linksError } = await supabase.from('drop_stock_orders').select('installation_order_id').eq('drop_stock_id', dropStockId);
+  if (linksError) throw linksError;
 
-  const orders = await db.installation_orders.where('id').anyOf(orderIds).toArray();
-  const orderItems = await db.installation_order_items.where('order_id').anyOf(orderIds).toArray();
-  const products = await db.products.toArray();
-  const recipients = await db.recipients.toArray();
+  const orderIds = (links || []).map(l => l.installation_order_id);
 
-  const productMap = {};
-  products.forEach(p => productMap[p.id] = p);
-  const recipientMap = {};
-  recipients.forEach(r => recipientMap[r.id] = r);
-
-  const ordersWithDetails = orders.map(o => {
-    const items = orderItems.filter(i => i.order_id === o.id);
-    const itemsWithProduct = items.map(i => ({ ...i, product: productMap[i.product_id] }));
+  if (orderIds.length === 0) {
     return {
-      ...o,
-      recipient: recipientMap[o.recipient_id],
-      items: itemsWithProduct
+      ...dropStock,
+      grouped_by_technician: [],
+      grand_total: 0,
+      total_orders: 0
     };
-  });
+  }
+
+  const { data: orders, error: ordersError } = await supabase.from('installation_orders').select('*, recipient:recipients(*)').in('id', orderIds);
+  if (ordersError) throw ordersError;
+
+  const { data: orderItems, error: itemsError } = await supabase.from('installation_order_items').select('*, product:products(*)').in('order_id', orderIds);
+  if (itemsError) throw itemsError;
+
+  const ordersWithDetails = (orders || []).map(o => ({
+    ...o,
+    items: (orderItems || []).filter(i => i.order_id === o.id)
+  }));
 
   const grouped_by_technician = {};
   let grandTotal = 0;
 
-  ordersWithDetails.forEach(o => {
+  for (const o of ordersWithDetails) {
     const recipientId = o.recipient_id;
-    const recipient = o.recipient;
     if (!grouped_by_technician[recipientId]) {
       grouped_by_technician[recipientId] = {
-        recipient,
+        recipient: o.recipient,
         orders: [],
         total_amount: 0
       };
@@ -509,7 +548,7 @@ export const getDropStockDetail = async (dropStockId) => {
     grouped_by_technician[recipientId].orders.push(o);
     grouped_by_technician[recipientId].total_amount += o.total_value || 0;
     grandTotal += o.total_value || 0;
-  });
+  }
 
   return {
     ...dropStock,
@@ -520,113 +559,105 @@ export const getDropStockDetail = async (dropStockId) => {
 };
 
 export const deleteDropStock = async (id) => {
-  await db.transaction('rw', db.drop_stocks, db.drop_stock_orders, async () => {
-    await db.drop_stock_orders.where('drop_stock_id').equals(id).delete();
-    await db.drop_stocks.delete(id);
-  });
+  await supabase.from('drop_stock_orders').delete().eq('drop_stock_id', id);
+  await supabase.from('drop_stocks').delete().eq('id', id);
 };
 
 export const getAvailableInstallationOrders = async () => {
-  const allOrders = await db.installation_orders.orderBy('order_date').reverse().toArray();
-  const allLinks = await db.drop_stock_orders.toArray();
-  const linkedOrderIds = new Set(allLinks.map(l => l.installation_order_id));
+  const { data: allOrders, error: ordersError } = await supabase.from('installation_orders').select('*, recipient:recipients(*)').order('order_date', { ascending: false });
+  if (ordersError) throw ordersError;
 
-  const availableOrders = allOrders.filter(o => !linkedOrderIds.has(o.id));
+  const { data: allLinks, error: linksError } = await supabase.from('drop_stock_orders').select('installation_order_id');
+  if (linksError) throw linksError;
 
-  const recipients = await db.recipients.toArray();
-  const recipientMap = {};
-  recipients.forEach(r => recipientMap[r.id] = r);
+  const linkedOrderIds = new Set((allLinks || []).map(l => l.installation_order_id));
 
-  return availableOrders.map(o => ({ ...o, recipient: recipientMap[o.recipient_id] }));
+  return (allOrders || []).filter(o => !linkedOrderIds.has(o.id));
 };
 
 export const updateDropStock = async (id, dropStock, installationOrderIds) => {
-  return await db.transaction('rw', db.drop_stocks, db.drop_stock_orders, async () => {
-    await db.drop_stocks.update(id, {
-      date: dropStock.date,
-      note: dropStock.note || '',
-      status: dropStock.status || 'draft',
-      updated_at: new Date().toISOString()
+  const { error: updateError } = await supabase.from('drop_stocks').update({
+    date: dropStock.date,
+    note: dropStock.note || '',
+    status: dropStock.status || 'draft'
+  }).eq('id', id);
+  if (updateError) throw updateError;
+
+  // Delete old links
+  await supabase.from('drop_stock_orders').delete().eq('drop_stock_id', id);
+
+  // Insert new links
+  for (const orderId of installationOrderIds) {
+    await supabase.from('drop_stock_orders').insert({
+      drop_stock_id: id,
+      installation_order_id: orderId,
+      created_at: new Date().toISOString()
     });
-
-    await db.drop_stock_orders.where('drop_stock_id').equals(id).delete();
-
-    for (const orderId of installationOrderIds) {
-      await db.drop_stock_orders.add({
-        drop_stock_id: id,
-        installation_order_id: orderId,
-        created_at: new Date().toISOString()
-      });
-    }
-  });
+  }
 };
 
 export const updateDropStockStatus = async (id, status) => {
-  await db.drop_stocks.update(id, {
-    status,
-    updated_at: new Date().toISOString()
-  });
+  const { error } = await supabase.from('drop_stocks').update({
+    status
+  }).eq('id', id);
+  if (error) throw error;
 };
 
 // ==================== REPORTS ====================
 export const getRecipientExportReport = async (recipientId = null, startDate = null, endDate = null) => {
-  let query = db.transactions.where('type').equals('export');
-  let transactions = await query.toArray();
+  let query = supabase.from('transactions').select('*, product:products(*), recipient:recipients(*)').eq('type', 'export');
 
   if (recipientId) {
-    transactions = transactions.filter(t => t.recipient_id === recipientId);
+    query = query.eq('recipient_id', recipientId);
   }
   if (startDate) {
-    transactions = transactions.filter(t => t.created_at >= startDate);
+    query = query.gte('created_at', startDate);
   }
   if (endDate) {
-    transactions = transactions.filter(t => t.created_at <= endDate);
+    query = query.lte('created_at', endDate);
   }
 
-  transactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-
-  const products = await db.products.toArray();
-  const recipients = await db.recipients.toArray();
-  const productMap = {};
-  const recipientMap = {};
-  products.forEach(p => productMap[p.id] = p);
-  recipients.forEach(r => recipientMap[r.id] = r);
-
-  return transactions.map(t => ({
-    ...t,
-    product: productMap[t.product_id],
-    recipient: recipientMap[t.recipient_id]
-  }));
+  const { data, error } = await query.order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
 };
 
 // ==================== STATISTICS ====================
 export const getStatistics = async () => {
-  const products = await db.products.toArray();
-  const transactions = await db.transactions.toArray();
+  const { data: products, error: productsError } = await supabase.from('products').select('*');
+  if (productsError) throw productsError;
 
-  const total_products = products.length;
-  const total_quantity = products.reduce((sum, p) => sum + p.quantity, 0);
-  const total_value = products.reduce((sum, p) => sum + (p.quantity * p.price), 0);
-  const low_stock_count = products.filter(p => p.quantity <= p.min_stock).length;
-  const total_import = transactions.filter(t => t.type === 'import').reduce((sum, t) => sum + t.quantity, 0);
-  const total_export = transactions.filter(t => t.type === 'export').reduce((sum, t) => sum + t.quantity, 0);
+  const { data: transactions, error: transError } = await supabase.from('transactions').select('*');
+  if (transError) throw transError;
+
+  const total_products = (products || []).length;
+  const total_quantity = (products || []).reduce((sum, p) => sum + p.quantity, 0);
+  const total_value = (products || []).reduce((sum, p) => sum + (p.quantity * p.price), 0);
+  const low_stock_count = (products || []).filter(p => p.quantity <= p.min_stock).length;
+  const total_import = (transactions || []).filter(t => t.type === 'import').reduce((sum, t) => sum + t.quantity, 0);
+  const total_export = (transactions || []).filter(t => t.type === 'export').reduce((sum, t) => sum + t.quantity, 0);
 
   return { total_products, total_quantity, total_value, low_stock_count, total_import, total_export };
 };
 
 export const getLowStockProducts = async () => {
-  const products = await db.products.toArray();
-  return products.filter(p => p.quantity <= p.min_stock).sort((a, b) => a.quantity - b.quantity);
+  const { data, error } = await supabase.from('products').select('*').order('quantity');
+  if (error) throw error;
+  return (data || []).filter(p => p.quantity <= p.min_stock);
 };
 
 export const getCategoryStats = async () => {
-  const products = await db.products.toArray();
+  const { data: products, error } = await supabase.from('products').select('*');
+  if (error) throw error;
+
   const categories = {};
-  products.forEach(p => {
-    if (!categories[p.category]) categories[p.category] = { count: 0, total_qty: 0, total_value: 0 };
-    categories[p.category].count++;
-    categories[p.category].total_qty += p.quantity;
-    categories[p.category].total_value += p.quantity * p.price;
+  (products || []).forEach(p => {
+    const cat = p.category || 'Chua phan loai';
+    if (!categories[cat]) categories[cat] = { count: 0, total_qty: 0, total_value: 0 };
+    categories[cat].count++;
+    categories[cat].total_qty += p.quantity;
+    categories[cat].total_value += p.quantity * p.price;
   });
+
   return Object.entries(categories).sort((a, b) => b[1].total_value - a[1].total_value);
 };

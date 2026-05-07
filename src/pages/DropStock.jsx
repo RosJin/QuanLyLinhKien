@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, DatePicker, Select, Space, Popconfirm, message, Input, Typography, Tag, List, Divider, Card } from "antd";
 import { PlusOutlined, DeleteOutlined, EyeOutlined, EditOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -270,7 +270,7 @@ const DropStock = () => {
             <p><strong>Tong tien: </strong>{(detail.grand_total || 0).toLocaleString("vi-VN")} d</p>
             <p><strong>Ghi chu: </strong>{detail.note}</p>
 
-            <Divider orientation="left">Chi tiet theo KTV/CTV</Divider>
+            <Divider titlePlacement="left">Chi tiet theo KTV/CTV</Divider>
             {(detail.grouped_by_technician || []).map((group, idx) => (
               <Card key={idx} size="small" style={{ marginBottom: 8 }}>
                 <p><strong>{group.recipient?.name || 'N/A'}</strong> ({group.recipient?.type === 'technician' ? 'KTV' : 'CTV'})</p>
@@ -296,3 +296,6 @@ const DropStock = () => {
 };
 
 export default DropStock;
+
+
+

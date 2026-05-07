@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Select, Input, InputNumber, Space, Popconfirm, message, Card, Row, Col, Typography } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
 import { getAllInstallationOrders, getInstallationOrderItems, addInstallationOrder, updateInstallationOrder, deleteInstallationOrder, getAllRecipients, getAllProducts, getAllCombos, getComboItems } from '../utils/dbUtils';
@@ -149,19 +149,19 @@ const InstallationOrders = () => {
           price: item.product?.price || 0
         })))
       ];
+      const orderData = {
+        code: values.code,
+        recipient_id: values.recipient_id,
+        order_date: values.order_date,
+        note: values.note,
+        total_quantity: calculateTotalQty(),
+        total_value: calculateTotal()
+      };
       if (editingOrder) {
-        await updateInstallationOrder(editingOrder.id, {
-          ...values,
-          total_quantity: calculateTotalQty(),
-          total_value: calculateTotal()
-        }, allItems);
+        await updateInstallationOrder(editingOrder.id, orderData, allItems);
         message.success('Cập nhật phiếu thành công');
       } else {
-        await addInstallationOrder({
-          ...values,
-          total_quantity: calculateTotalQty(),
-          total_value: calculateTotal()
-        }, allItems);
+        await addInstallationOrder(orderData, allItems);
         message.success('Tạo phiếu lắp đặt thành công');
       }
       setIsModalOpen(false);
@@ -389,3 +389,5 @@ const InstallationOrders = () => {
 };
 
 export default InstallationOrders;
+
+

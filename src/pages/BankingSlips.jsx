@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Select, Input, InputNumber, Space, Popconfirm, message, Upload, Image, Tag, List, Divider } from 'antd';
+import { Table, Button, Modal, Form, Select, Input, InputNumber, Space, Popconfirm, message, Upload, Image, Tag, List, Divider, Spin } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, UploadOutlined, DeleteFilled } from '@ant-design/icons';
 import { getAllBankingSlips, addBankingSlip, updateBankingSlip, deleteBankingSlip, getAllRecipients, getAllInstallationOrders, getBankingSlipOrders, addBankingSlipOrder, deleteBankingSlipOrder } from '../utils/dbUtils';
+import { uploadToCloudinary } from '../utils/cloudinaryUtils';
 import dayjs from 'dayjs';
 import useMobile from '../hooks/useMobile';
 
@@ -17,6 +18,7 @@ const BankingSlips = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailSlip, setDetailSlip] = useState(null);
+  const [imageUploading, setImageUploading] = useState(false);
   const [form] = Form.useForm();
 
   const loadData = async () => {
@@ -59,11 +61,19 @@ const BankingSlips = () => {
     loadData();
   };
 
-  const handleImageUpload = (file) => {
-    const reader = new FileReader();
-    reader.onload = (e) => { setImageUrl(e.target.result); };
-    reader.readAsDataURL(file);
-    return false;
+  const handleImageUpload = (options) => {
+    const { onSuccess, onError, file } = options;
+    setImageUploading(true);
+    uploadToCloudinary(file).then(result => {
+      setImageUrl(result.url);
+      message.success('Upload anh thanh cong');
+      setImageUploading(false);
+      onSuccess(result, file);
+    }).catch(error => {
+      message.error(error.message);
+      setImageUploading(false);
+      onError(error);
+    });
   };
 
   const handleRemoveImage = () => { setImageUrl(null); };
@@ -216,7 +226,12 @@ const BankingSlips = () => {
           </Form.Item>
 
           <Divider orientation="left">Upload chung tu chuyen khoan</Divider>
-          {imageUrl ? (
+          {imageUploading ? (
+            <div style={{ marginBottom: 16, textAlign: 'center' }}>
+              <Spin size="large" />
+              <p>Dang upload anh len Cloudinary...</p>
+            </div>
+          ) : imageUrl ? (
             <div style={{ marginBottom: 16, textAlign: 'center' }}>
               <Image src={imageUrl} alt="Chung tu" style={{ maxHeight: 200 }} />
               <br />
@@ -226,7 +241,7 @@ const BankingSlips = () => {
             <Upload
               accept="image/*"
               maxCount={1}
-              beforeUpload={handleImageUpload}
+              customRequest={handleImageUpload}
               showUploadList={false}
             >
               <Button icon={<UploadOutlined />}>Chon anh chung tu</Button>
