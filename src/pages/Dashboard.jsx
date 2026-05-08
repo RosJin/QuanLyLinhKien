@@ -5,7 +5,7 @@ import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients,
 import seedData from '../utils/seedData';
 import useMobile from '../hooks/useMobile';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const Dashboard = () => {
   const isMobile = useMobile();
@@ -19,8 +19,8 @@ const Dashboard = () => {
   });
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [categoryStats, setCategoryStats] = useState([]);
-  const [techProductColumns, setTechProductColumns] = useState([]);
-  const [techProductData, setTechProductData] = useState([]);
+  const [techColumns, setTechColumns] = useState([]);
+  const [techData, setTechData] = useState([]);
   const [productList, setProductList] = useState([]);
 
   useEffect(() => {
@@ -48,18 +48,18 @@ const Dashboard = () => {
       const orders = await getAllInstallationOrders();
       const items = await getAllInstallationOrderItems();
 
-      // Initialize matrix
+      // Initialize matrix: matrix[productCode][recipientId] = quantity
       const matrix = {};
-      techs.forEach(t => {
-        matrix[t.id] = {};
-        products.forEach(p => { matrix[t.id][p.code] = 0; });
+      products.forEach(p => {
+        matrix[p.code] = {};
+        techs.forEach(t => { matrix[p.code][t.id] = 0; });
       });
 
       // Add exports (positive)
       exportTransactions.forEach(t => {
         const code = productCodeMap[t.product_id];
-        if (code && matrix[t.recipient_id]) {
-          matrix[t.recipient_id][code] = (matrix[t.recipient_id][code] || 0) + t.quantity;
+        if (code && matrix[code]) {
+          matrix[code][t.recipient_id] = (matrix[code][t.recipient_id] || 0) + t.quantity;
         }
       });
 
@@ -69,40 +69,47 @@ const Dashboard = () => {
 
       items.forEach(item => {
         const recipientId = orderRecipientMap[item.order_id];
-        if (recipientId && matrix[recipientId]) {
+        if (recipientId) {
           const code = productCodeMap[item.product_id];
-          if (code) {
-            matrix[recipientId][code] = (matrix[recipientId][code] || 0) - item.quantity;
+          if (code && matrix[code]) {
+            matrix[code][recipientId] = (matrix[code][recipientId] || 0) - item.quantity;
           }
         }
       });
 
-      // Build table data
-      const data = techs.map(tech => {
-        const row = { key: tech.id, techName: tech.name + (tech.type === 'technician' ? ' (KTV)' : ' (CTV)') };
-        products.forEach(p => {
-          row[p.code] = matrix[tech.id][p.code] || 0;
+      // Build table data: each row = 1 product
+      const data = products.map(p => {
+        const row = {
+          key: p.id,
+          code: p.code,
+          name: p.name
+        };
+        techs.forEach(t => {
+          row[`tech_${t.id}`] = matrix[p.code]?.[t.id] || 0;
         });
         return row;
       });
 
+      // Build columns: first 2 cols = product code + name, then 1 col per tech
       const columns = [
-        { title: 'KTV/CTV', dataIndex: 'techName', key: 'techName', fixed: 'left', width: isMobile ? 120 : 200 },
-        ...products.map(p => ({
-          title: p.code,
-          dataIndex: p.code,
-          key: p.id,
-          width: isMobile ? 80 : 120,
+        { title: 'Mã', dataIndex: 'code', key: 'code', fixed: 'left', width: isMobile ? 80 : 100 },
+        { title: 'Tên SP', dataIndex: 'name', key: 'name', fixed: 'left', width: isMobile ? 120 : 200 },
+        ...techs.map(t => ({
+          title: `${t.code}\n${t.name}`,
+          dataIndex: `tech_${t.id}`,
+          key: `tech_${t.id}`,
+          width: isMobile ? 80 : 100,
+          align: 'center',
           render: (val) => {
             if (val === 0) return <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>0</span>;
-            if (val < 3) return <span style={{ color: '#fa8c16' }}>{val}</span>;
+            if (val < 3) return <span style={{ color: '#fa8c16', fontWeight: '500' }}>{val}</span>;
             return <span style={{ color: '#52c41a' }}>{val}</span>;
           }
         }))
       ];
 
-      setTechProductColumns(columns);
-      setTechProductData(data);
+      setTechColumns(columns);
+      setTechData(data);
     } catch (error) {
       console.error('Error loading tech product matrix:', error);
     }
@@ -225,41 +232,28 @@ const Dashboard = () => {
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col span={24}>
-          <Card bordered={false}>
-            <Tabs
-              defaultActiveKey="lowstock"
-              items={[
-                {
-                  key: 'lowstock',
-                  label: `Sản phẩm sắp hết (${lowStockProducts.length})`,
-                  children: (
-                    <Table
-                      dataSource={lowStockProducts}
-                      columns={lowStockColumns}
-                      rowKey="id"
-                      size="small"
-                      pagination={false}
-                      scroll={{ x: 600 }}
-                      locale={{ emptyText: 'Không có sản phẩm sắp hết' }}
-                    />
-                  )
-                },
-                {
-                  key: 'category',
-                  label: 'Thống kê theo danh mục',
-                  children: (
-                    <Table
-                      dataSource={categoryStats.map(([category, data]) => ({ category, ...data }))}
-                      columns={categoryColumns}
-                      rowKey="category"
-                      size="small"
-                      pagination={false}
-                      scroll={{ x: 500 }}
-                    />
-                  )
-                }
-              ]}
+        <Col xs={24} md={12}>
+          <Card title="Sản phẩm sắp hết hàng" bordered={false}>
+            <Table
+              dataSource={lowStockProducts}
+              columns={lowStockColumns}
+              rowKey="id"
+              size="small"
+              pagination={false}
+              scroll={{ x: 600 }}
+              locale={{ emptyText: 'Không có sản phẩm sắp hết' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} md={12}>
+          <Card title="Thống kê theo danh mục" bordered={false}>
+            <Table
+              dataSource={categoryStats.map(([category, data]) => ({ category, ...data }))}
+              columns={categoryColumns}
+              rowKey="category"
+              size="small"
+              pagination={false}
+              scroll={{ x: 500 }}
             />
           </Card>
         </Col>
@@ -267,11 +261,14 @@ const Dashboard = () => {
 
       <Row gutter={[16, 16]}>
         <Col span={24}>
-          <Card title="Linh kiện theo KTV/CTV" bordered={false}>
+          <Card
+            title="Linh kiện theo KTV/CTV"
+            bordered={false}
+          >
             <Table
-              columns={techProductColumns}
-              dataSource={techProductData}
-              scroll={{ x: Math.max(800, 200 + productList.length * 120) }}
+              columns={techColumns}
+              dataSource={techData}
+              scroll={{ x: Math.max(800, 300 + productList.length * 120) }}
               size="small"
               pagination={false}
               bordered
