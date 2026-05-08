@@ -114,7 +114,7 @@ export const updateTransaction = async (id, newValues) => {
     : targetProduct.quantity - quantity;
 
   // Update transaction
-  const { error: updateError } = await supabase.from('transactions').update({
+  const updateData = {
     product_id,
     type,
     quantity,
@@ -122,7 +122,14 @@ export const updateTransaction = async (id, newValues) => {
     note,
     recipient_id,
     updated_at: new Date().toISOString()
-  }).eq('id', id);
+  };
+
+  // Update created_at if transaction_date is provided
+  if (newValues.transaction_date) {
+    updateData.created_at = new Date(newValues.transaction_date).toISOString();
+  }
+
+  const { error: updateError } = await supabase.from('transactions').update(updateData).eq('id', id);
   if (updateError) throw updateError;
 
   // Update product with new quantity

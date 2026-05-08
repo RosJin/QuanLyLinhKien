@@ -81,7 +81,8 @@ const PhysicalStock = () => {
       quantity: record.quantity,
       price: record.price,
       recipient_id: record.recipient_id,
-      note: record.note
+      note: record.note,
+      transaction_date: record.created_at ? dayjs(record.created_at) : null
     });
     setIsModalOpen(true);
   };
@@ -259,6 +260,11 @@ const PhysicalStock = () => {
 
           {editingTransaction || selectedType === 'product' ? (
             <>
+              {editingTransaction && (
+                <Form.Item name="transaction_date" label="Ngày giao dịch" rules={[{ required: true, message: 'Chọn ngày' }]}>
+                  <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" showTime />
+                </Form.Item>
+              )}
               <Form.Item name="product_id" label="Sản phẩm" rules={[{ required: true, message: 'Chọn sản phẩm' }]}>
                 <Select placeholder="Chọn sản phẩm" showSearch optionFilterProp="children">
                   {products.map(p => (
