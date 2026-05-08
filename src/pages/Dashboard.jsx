@@ -96,7 +96,7 @@ const Dashboard = () => {
           dataIndex: 'productLabel',
           key: 'productLabel',
           fixed: 'left',
-          width: isMobile ? 150 : 250,
+          width: isMobile ? 100 : 120,
           ellipsis: { showTitle: true }
         },
         ...techs.map(t => ({
@@ -270,15 +270,18 @@ const Dashboard = () => {
             title="Linh kiện theo KTV/CTV"
             bordered={false}
           >
-            <Table
-              columns={techColumns}
-              dataSource={techData}
-              scroll={{ x: Math.max(800, 300 + productList.length * 120) }}
-              size="small"
-              pagination={false}
-              bordered
-              locale={{ emptyText: 'Không có dữ liệu' }}
-            />
+            <div style={{ overflowX: 'auto', maxHeight: '70vh', overflowY: 'auto' }}>
+              <Table
+                columns={techColumns}
+                dataSource={techData}
+                scroll={{ x: Math.max(800, 300 + productList.length * 120), y: 500 }}
+                size="small"
+                pagination={false}
+                bordered
+                locale={{ emptyText: 'Không có dữ liệu' }}
+                sticky
+              />
+            </div>
             <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
               <span style={{ color: '#52c41a' }}>●</span> ≥ 3 (Đủ) &nbsp;
               <span style={{ color: '#fa8c16' }}>●</span> 1-2 (Sắp hết) &nbsp;
