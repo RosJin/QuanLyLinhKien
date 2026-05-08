@@ -66,13 +66,15 @@ const TotalStock = () => {
       title: 'Trạng thái',
       key: 'status',
       width: isMobile ? 100 : 120,
-      render: (_, record) => (
-        record.quantity <= record.min_stock ?
-          <Tag color="red">Sắp hết</Tag> :
-          record.quantity <= record.min_stock * 2 ?
-            <Tag color="orange">Thấp</Tag> :
-            <Tag color="green">Đủ</Tag>
-      )
+      render: (_, record) => {
+        if (record.quantity === 0) {
+          return <Tag color="red">Hết hàng</Tag>;
+        }
+        if (record.quantity < 3) {
+          return <Tag color="orange">Sắp hết</Tag>;
+        }
+        return <Tag color="green">Đủ</Tag>;
+      }
     }
   ];
 
