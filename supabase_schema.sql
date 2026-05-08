@@ -14,6 +14,7 @@ create table if not exists products (
   price numeric(15,2) default 0,
   quantity integer default 0,
   min_stock integer default 0,
+  type text not null default 'product' check (type in ('product', 'service')),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

@@ -24,7 +24,12 @@
       "Bash(git push *)",
       "Bash(npx eslint *)",
       "Bash(Select-Object Name)",
-      "Bash(Select-String -First 50)"
+      "Bash(Select-String -First 50)",
+      "Bash(del \"src\\\\utils\\\\ocrUtils.js\")",
+      "Bash(npm uninstall *)",
+      "Bash(npx vite *)",
+      "Bash(Select-String -Pattern \"error|Error\" -Context 2)",
+      "Bash(git rm *)"
     ]
   }
 }

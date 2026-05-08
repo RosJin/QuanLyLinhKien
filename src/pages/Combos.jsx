@@ -17,7 +17,7 @@ const Combos = () => {
   const [itemForm] = Form.useForm();
 
   const loadData = async () => {
-    const [comboData, productData] = await Promise.all([getAllCombos(), getAllProducts()]);
+    const [comboData, productData] = await Promise.all([getAllCombos(), getAllProducts('product')]);
     setCombos(comboData);
     setProducts(productData);
   };

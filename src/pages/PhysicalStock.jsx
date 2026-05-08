@@ -31,7 +31,7 @@ const PhysicalStock = () => {
   useEffect(() => {
     const loadStatic = async () => {
       const [prods, recips, cmb] = await Promise.all([
-        getAllProducts(),
+        getAllProducts('product'),
         getAllRecipients(),
         getAllCombos()
       ]);

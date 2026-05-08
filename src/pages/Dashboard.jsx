@@ -29,7 +29,7 @@ const Dashboard = () => {
     try {
       const allRecipients = await getAllRecipients();
       const techs = allRecipients.filter(r => r.type === 'technician' || r.type === 'collaborator');
-      const products = await getAllProducts();
+      const products = await getAllProducts('product');
       setProductList(products);
 
       // Build product id -> code map

@@ -10,7 +10,7 @@ const TotalStock = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
 
   const loadProducts = async () => {
-    const data = await getAllProducts();
+    const data = await getAllProducts('product');
     setProducts(data);
     setFilteredProducts(data);
   };
