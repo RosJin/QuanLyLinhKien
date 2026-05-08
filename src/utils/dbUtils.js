@@ -24,8 +24,16 @@ export const deleteProduct = async (id) => {
   if (error) throw error;
 };
 
-export const getAllProducts = async () => {
-  const { data, error } = await supabase.from('products').select('*').order('name');
+export const getAllProducts = async (type = null) => {
+  let query = supabase.from('products').select('*');
+  if (type) query = query.eq('type', type);
+  const { data, error } = await query.order('name');
+  if (error) throw error;
+  return data || [];
+};
+
+export const getProductsByType = async (type) => {
+  const { data, error } = await supabase.from('products').select('*').eq('type', type).order('name');
   if (error) throw error;
   return data || [];
 };
@@ -36,8 +44,10 @@ export const getProductById = async (id) => {
   return data;
 };
 
-export const searchProducts = async (keyword) => {
-  const { data, error } = await supabase.from('products').select('*').or(`code.ilike.%${keyword}%,name.ilike.%${keyword}%,category.ilike.%${keyword}%`).order('name');
+export const searchProducts = async (keyword, type = null) => {
+  let query = supabase.from('products').select('*').or(`code.ilike.%${keyword}%,name.ilike.%${keyword}%,category.ilike.%${keyword}%`);
+  if (type) query = query.eq('type', type);
+  const { data, error } = await query.order('name');
   if (error) throw error;
   return data || [];
 };
@@ -624,7 +634,7 @@ export const getRecipientExportReport = async (recipientId = null, startDate = n
 
 // ==================== STATISTICS ====================
 export const getStatistics = async () => {
-  const { data: products, error: productsError } = await supabase.from('products').select('*');
+  const { data: products, error: productsError } = await supabase.from('products').select('*').eq('type', 'product');
   if (productsError) throw productsError;
 
   const { data: transactions, error: transError } = await supabase.from('transactions').select('*');
@@ -641,13 +651,13 @@ export const getStatistics = async () => {
 };
 
 export const getLowStockProducts = async () => {
-  const { data, error } = await supabase.from('products').select('*').order('quantity');
+  const { data, error } = await supabase.from('products').select('*').eq('type', 'product').order('quantity');
   if (error) throw error;
   return (data || []).filter(p => p.quantity <= p.min_stock);
 };
 
 export const getCategoryStats = async () => {
-  const { data: products, error } = await supabase.from('products').select('*');
+  const { data: products, error } = await supabase.from('products').select('*').eq('type', 'product');
   if (error) throw error;
 
   const categories = {};
