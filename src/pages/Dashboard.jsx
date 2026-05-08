@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Tabs } from 'antd';
+import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Tabs, Typography } from 'antd';
 import { ShoppingOutlined, InboxOutlined, DollarOutlined, WarningOutlined, PlusOutlined } from '@ant-design/icons';
 import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts, getTransactions, getAllInstallationOrders, getAllInstallationOrderItems } from '../utils/dbUtils';
 import seedData from '../utils/seedData';
