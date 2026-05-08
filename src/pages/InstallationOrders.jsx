@@ -70,7 +70,7 @@ const InstallationOrders = () => {
   };
 
   const addOrderItem = () => {
-    setOrderItems([...orderItems, { product_id: null, quantity: 1, price: 0 }]);
+    setOrderItems([...orderItems, { product_id: null, quantity: 1, price: 0, product_type: null, product_unit: null }]);
   };
 
   const updateOrderItem = (index, field, value) => {
@@ -78,7 +78,18 @@ const InstallationOrders = () => {
     newItems[index][field] = value;
     if (field === 'product_id') {
       const product = products.find(p => p.id === value);
-      if (product) newItems[index].price = product.price;
+      if (product) {
+        newItems[index].price = product.price;
+        newItems[index].product_type = product.type;
+        newItems[index].product_unit = product.unit;
+        // Auto-calculate for travel charge (km)
+        if (product.type === 'service' && product.unit === 'km') {
+          newItems[index].price = (newItems[index].quantity || 1) * 2000;
+        }
+      }
+    }
+    if (field === 'quantity' && newItems[index].product_type === 'service' && newItems[index].product_unit === 'km') {
+      newItems[index].price = value * 2000;
     }
     setOrderItems(newItems);
   };
@@ -315,17 +326,24 @@ const InstallationOrders = () => {
                     onChange={(val) => updateOrderItem(index, 'product_id', val)}
                     style={{ width: '100%' }}
                     showSearch
+                    optionFilterProp="children"
+                    filterOption={(input, option) => {
+                      const product = products.find(p => p.id === option.value);
+                      if (!product) return false;
+                      const searchText = `${product.code} ${product.name}`.toLowerCase();
+                      return searchText.includes(input.toLowerCase());
+                    }}
                   >
-                    {products.map(p => <Select.Option key={p.id} value={p.id}>{p.code} - {p.name}</Select.Option>)}
+                    {products.map(p => <Select.Option key={p.id} value={p.id}>{p.code} - {p.name} ({p.type === 'service' ? 'Phí DV' : p.unit || 'cai'})</Select.Option>)}
                   </Select>
                 </Col>
                 <Col xs={12} sm={6}>
                   <InputNumber
-                    min={1}
+                    min={item.product_type === 'service' && item.product_unit === 'km' ? 0 : 1}
                     value={item.quantity}
                     onChange={(val) => updateOrderItem(index, 'quantity', val)}
                     style={{ width: '100%' }}
-                    placeholder="SL"
+                    placeholder={item.product_type === 'service' && item.product_unit === 'km' ? 'Số km' : 'SL'}
                   />
                 </Col>
                 <Col xs={10} sm={6}>
@@ -335,6 +353,7 @@ const InstallationOrders = () => {
                     onChange={(val) => updateOrderItem(index, 'price', val)}
                     style={{ width: '100%' }}
                     placeholder="Giá"
+                    disabled={item.product_type === 'service' && item.product_unit === 'km'}
                   />
                 </Col>
                 <Col xs={2}>
