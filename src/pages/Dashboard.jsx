@@ -1,9 +1,11 @@
-﻿import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message } from 'antd';
-import { ShoppingOutlined, InboxOutlined, WarningOutlined, DollarOutlined, PlusOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Tabs } from 'antd';
+import { ShoppingOutlined, InboxOutlined, DollarOutlined, WarningOutlined, PlusOutlined } from '@ant-design/icons';
 import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts, getTransactions, getAllInstallationOrders, getAllInstallationOrderItems } from '../utils/dbUtils';
 import seedData from '../utils/seedData';
 import useMobile from '../hooks/useMobile';
+
+const { Text, Title } = Typography;
 
 const Dashboard = () => {
   const isMobile = useMobile();
@@ -91,7 +93,11 @@ const Dashboard = () => {
           dataIndex: p.code,
           key: p.id,
           width: isMobile ? 80 : 120,
-          render: (val) => val || 0
+          render: (val) => {
+            if (val === 0) return <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>0</span>;
+            if (val < 3) return <span style={{ color: '#fa8c16' }}>{val}</span>;
+            return <span style={{ color: '#52c41a' }}>{val}</span>;
+          }
         }))
       ];
 
@@ -119,13 +125,27 @@ const Dashboard = () => {
     { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100 },
     { title: 'Tên', dataIndex: 'name', key: 'name', width: isMobile ? 100 : 150 },
     { title: 'Danh mục', dataIndex: 'category', key: 'category', width: isMobile ? 80 : 120 },
-    { title: 'Tồn kho', dataIndex: 'quantity', key: 'quantity', width: isMobile ? 60 : 80 },
+    {
+      title: 'Tồn kho',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: isMobile ? 60 : 80,
+      render: (val) => {
+        if (val === 0) return <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>0</span>;
+        if (val < 3) return <span style={{ color: '#fa8c16' }}>{val}</span>;
+        return val;
+      }
+    },
     { title: 'Mức tối thiểu', dataIndex: 'min_stock', key: 'min_stock', width: isMobile ? 60 : 80 },
     {
       title: 'Trạng thái',
       key: 'status',
       width: isMobile ? 70 : 100,
-      render: () => <Tag color="red">Sắp hết</Tag>
+      render: (_, record) => {
+        if (record.quantity === 0) return <Tag color="red">Hết hàng</Tag>;
+        if (record.quantity < 3) return <Tag color="orange">Sắp hết</Tag>;
+        return <Tag color="green">Đủ</Tag>;
+      }
     }
   ];
 
@@ -205,27 +225,41 @@ const Dashboard = () => {
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} md={12}>
-          <Card title="Sản phẩm sắp hết hàng" bordered={false}>
-            <Table
-              dataSource={lowStockProducts}
-              columns={lowStockColumns}
-              rowKey="id"
-              size="small"
-              pagination={false}
-              scroll={{ x: 600 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} md={12}>
-          <Card title="Thống kê theo danh mục" bordered={false}>
-            <Table
-              dataSource={categoryStats.map(([category, data]) => ({ category, ...data }))}
-              columns={categoryColumns}
-              rowKey="category"
-              size="small"
-              pagination={false}
-              scroll={{ x: 500 }}
+        <Col span={24}>
+          <Card bordered={false}>
+            <Tabs
+              defaultActiveKey="lowstock"
+              items={[
+                {
+                  key: 'lowstock',
+                  label: `Sản phẩm sắp hết (${lowStockProducts.length})`,
+                  children: (
+                    <Table
+                      dataSource={lowStockProducts}
+                      columns={lowStockColumns}
+                      rowKey="id"
+                      size="small"
+                      pagination={false}
+                      scroll={{ x: 600 }}
+                      locale={{ emptyText: 'Không có sản phẩm sắp hết' }}
+                    />
+                  )
+                },
+                {
+                  key: 'category',
+                  label: 'Thống kê theo danh mục',
+                  children: (
+                    <Table
+                      dataSource={categoryStats.map(([category, data]) => ({ category, ...data }))}
+                      columns={categoryColumns}
+                      rowKey="category"
+                      size="small"
+                      pagination={false}
+                      scroll={{ x: 500 }}
+                    />
+                  )
+                }
+              ]}
             />
           </Card>
         </Col>
@@ -241,7 +275,13 @@ const Dashboard = () => {
               size="small"
               pagination={false}
               bordered
+              locale={{ emptyText: 'Không có dữ liệu' }}
             />
+            <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+              <span style={{ color: '#52c41a' }}>●</span> ≥ 3 (Đủ) &nbsp;
+              <span style={{ color: '#fa8c16' }}>●</span> 1-2 (Sắp hết) &nbsp;
+              <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>●</span> 0 (Hết hàng)
+            </div>
           </Card>
         </Col>
       </Row>
@@ -250,5 +290,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
-
