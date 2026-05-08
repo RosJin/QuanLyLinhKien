@@ -81,7 +81,8 @@ const Dashboard = () => {
       const data = products.map(p => {
         const row = {
           key: p.id,
-          productLabel: `${p.code} - ${p.name}`
+          productCode: p.code,
+          productName: p.name
         };
         techs.forEach(t => {
           row[`tech_${t.id}`] = matrix[p.code]?.[t.id] || 0;
@@ -92,12 +93,15 @@ const Dashboard = () => {
       // Build columns: first col = product code + name, then 1 col per tech
       const columns = [
         {
-          title: 'Mã & Tên SP',
-          dataIndex: 'productLabel',
-          key: 'productLabel',
+          title: 'Mã SP',
+          dataIndex: 'productCode',
+          key: 'productCode',
           fixed: 'left',
-          width: isMobile ? 100 : 120,
-          ellipsis: { showTitle: true }
+          width: isMobile ? 60 : 70,
+          ellipsis: { showTitle: true },
+          render: (code, record) => (
+            <span title={record.productName}>{code}</span>
+          )
         },
         ...techs.map(t => ({
           title: `${t.code}\n${t.name}`,
