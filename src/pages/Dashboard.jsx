@@ -81,8 +81,7 @@ const Dashboard = () => {
       const data = products.map(p => {
         const row = {
           key: p.id,
-          code: p.code,
-          name: p.name
+          productLabel: `${p.code} - ${p.name}`
         };
         techs.forEach(t => {
           row[`tech_${t.id}`] = matrix[p.code]?.[t.id] || 0;
@@ -90,15 +89,21 @@ const Dashboard = () => {
         return row;
       });
 
-      // Build columns: first 2 cols = product code + name, then 1 col per tech
+      // Build columns: first col = product code + name, then 1 col per tech
       const columns = [
-        { title: 'Mã', dataIndex: 'code', key: 'code', fixed: 'left', width: isMobile ? 80 : 100 },
-        { title: 'Tên SP', dataIndex: 'name', key: 'name', fixed: 'left', width: isMobile ? 120 : 200 },
+        {
+          title: 'Mã & Tên SP',
+          dataIndex: 'productLabel',
+          key: 'productLabel',
+          fixed: 'left',
+          width: isMobile ? 150 : 250,
+          ellipsis: { showTitle: true }
+        },
         ...techs.map(t => ({
           title: `${t.code}\n${t.name}`,
           dataIndex: `tech_${t.id}`,
           key: `tech_${t.id}`,
-          width: isMobile ? 80 : 100,
+          width: isMobile ? 70 : 90,
           align: 'center',
           render: (val) => {
             if (val === 0) return <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>0</span>;
