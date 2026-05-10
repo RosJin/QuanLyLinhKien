@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Space, Button, message, Tabs, Typography } from 'antd';
+import { useEffect, useState, useCallback } from 'react';
+import { Card, Row, Col, Statistic, Table, Tag, Button, Alert, Spin } from 'antd';
 import { ShoppingOutlined, InboxOutlined, DollarOutlined, WarningOutlined, PlusOutlined } from '@ant-design/icons';
 import { getStatistics, getLowStockProducts, getCategoryStats, getAllRecipients, getAllProducts, getTransactions, getAllInstallationOrders, getAllInstallationOrderItems } from '../utils/dbUtils';
-import seedData from '../utils/seedData';
 import useMobile from '../hooks/useMobile';
-
-const { Text } = Typography;
 
 const Dashboard = () => {
   const isMobile = useMobile();
@@ -21,32 +18,31 @@ const Dashboard = () => {
   const [categoryStats, setCategoryStats] = useState([]);
   const [techColumns, setTechColumns] = useState([]);
   const [techData, setTechData] = useState([]);
-  const [productList, setProductList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadTechProductMatrix = async () => {
+  const loadTechProductMatrix = useCallback(async () => {
     try {
-      const allRecipients = await getAllRecipients();
+      const [allRecipients, products, allExportTransactions, orders, items] = await Promise.all([
+        getAllRecipients(),
+        getAllProducts('product'),
+        getTransactions({ type: 'export' }),
+        getAllInstallationOrders(),
+        getAllInstallationOrderItems()
+      ]);
+
       const techs = allRecipients.filter(r => r.type === 'technician' || r.type === 'collaborator');
-      const products = await getAllProducts('product');
-      setProductList(products);
 
       // Build product id -> code map
       const productCodeMap = {};
       products.forEach(p => { productCodeMap[p.id] = p.code; });
+      const techMap = {};
+      techs.forEach(t => { techMap[t.id] = t; });
 
       // 1. Get export transactions for techs
-      const allExportTransactions = await getTransactions({ type: 'export' });
       const exportTransactions = allExportTransactions.filter(
-        t => t.recipient_id && techs.some(tech => tech.id === t.recipient_id)
+        (t) => t.recipient_id && !!techMap[t.recipient_id]
       );
-
-      // 2. Get orders and items
-      const orders = await getAllInstallationOrders();
-      const items = await getAllInstallationOrderItems();
 
       // Initialize matrix: matrix[productCode][recipientId] = quantity
       const matrix = {};
@@ -70,7 +66,7 @@ const Dashboard = () => {
 
       items.forEach(item => {
         const recipientId = orderRecipientMap[item.order_id];
-        const recipient = techs.find(t => t.id === recipientId);
+        const recipient = techMap[recipientId];
         // Chỉ trừ nếu KTV có allocation_type === 'normal', bỏ qua 'default'
         if (recipientId && recipient && recipient.allocation_type !== 'default') {
           const code = productCodeMap[item.product_id];
@@ -100,11 +96,18 @@ const Dashboard = () => {
           dataIndex: 'productCode',
           key: 'productCode',
           fixed: 'left',
-          width: isMobile ? 60 : 70,
-          ellipsis: { showTitle: true },
+          width: isMobile ? 110 : 140,
           render: (code, record) => (
             <span title={record.productName}>{code}</span>
           )
+        },
+        {
+          title: 'Tên SP',
+          dataIndex: 'productName',
+          key: 'productName',
+          fixed: 'left',
+          width: isMobile ? 140 : 180,
+          ellipsis: { showTitle: true }
         },
         ...techs.map(t => ({
           title: t.allocation_type === 'default'
@@ -126,21 +129,40 @@ const Dashboard = () => {
       setTechData(data);
     } catch (error) {
       console.error('Error loading tech product matrix:', error);
+      throw error;
     }
-  };
+  }, [isMobile]);
 
-  const loadData = async () => {
-    const statistics = await getStatistics();
-    setStats(statistics);
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError('');
+    try {
+      const [statistics, lowStock, categories] = await Promise.all([
+        getStatistics(),
+        getLowStockProducts(),
+        getCategoryStats()
+      ]);
 
-    const lowStock = await getLowStockProducts();
-    setLowStockProducts(lowStock);
+      setStats(statistics);
+      setLowStockProducts(lowStock);
+      setCategoryStats(categories);
 
-    const categories = await getCategoryStats();
-    setCategoryStats(categories);
+      await loadTechProductMatrix();
+    } catch (error) {
+      console.error(error);
+      setLoadError('Không thể tải dữ liệu dashboard. Vui lòng thử lại.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [loadTechProductMatrix]);
 
-    await loadTechProductMatrix();
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadData();
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [loadData]);
 
   const lowStockColumns = [
     { title: 'Mã', dataIndex: 'code', key: 'code', width: isMobile ? 80 : 100 },
@@ -183,24 +205,19 @@ const Dashboard = () => {
     }
   ];
 
-  const handleSeedData = async () => {
-    try {
-      await seedData();
-      message.success('Đã tạo dữ liệu mẫu!');
-      loadData();
-    } catch (error) {
-      console.error(error);
-      message.error('Lỗi tạo dữ liệu');
-    }
-  };
-
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <Button type="primary" onClick={handleSeedData} style={isMobile ? { width: '100%' } : {}}>
-          Tạo dữ liệu mẫu để test
-        </Button>
-      </div>
+      {loadError && (
+        <Alert
+          type="error"
+          showIcon
+          message={loadError}
+          action={<Button size="small" onClick={loadData}>Thử lại</Button>}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
+      <Spin spinning={isLoading}>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} md={6}>
@@ -236,10 +253,28 @@ const Dashboard = () => {
         <Col xs={24} sm={12} md={6}>
           <Card hoverable>
             <Statistic
+              title="Tổng nhập"
+              value={stats.total_import}
+              prefix={<PlusOutlined style={{ color: '#13c2c2' }} />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card hoverable>
+            <Statistic
               title="Sắp hết hàng"
               value={stats.low_stock_count}
               prefix={<WarningOutlined style={{ color: stats.low_stock_count > 0 ? '#f5222d' : '#52c41a' }} />}
               valueStyle={{ color: stats.low_stock_count > 0 ? '#f5222d' : '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} md={6}>
+          <Card hoverable>
+            <Statistic
+              title="Tổng xuất"
+              value={stats.total_export}
+              prefix={<InboxOutlined style={{ color: '#2f54eb' }} />}
             />
           </Card>
         </Col>
@@ -283,7 +318,7 @@ const Dashboard = () => {
               <Table
                 columns={techColumns}
                 dataSource={techData}
-                scroll={{ x: Math.max(800, 300 + productList.length * 120), y: 500 }}
+                scroll={{ x: Math.max(800, (techColumns.length + 1) * (isMobile ? 80 : 100)), y: 500 }}
                 size="small"
                 pagination={false}
                 bordered
@@ -300,6 +335,7 @@ const Dashboard = () => {
           </Card>
         </Col>
       </Row>
+      </Spin>
     </div>
   );
 };
