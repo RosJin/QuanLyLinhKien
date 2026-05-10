@@ -111,6 +111,11 @@ const PhysicalStock = () => {
     try {
       const values = await form.validateFields();
 
+      // Không lưu recipient_id khi nhập kho
+      if (transType === 'import') {
+        values.recipient_id = null;
+      }
+
       if (editingTransaction) {
         await updateTransaction(editingTransaction.id, values);
         message.success('Cập nhật giao dịch thành công');
@@ -313,13 +318,15 @@ const PhysicalStock = () => {
             <InputNumber min={0} style={{ width: '100%' }} placeholder="Để trống nếu dùng giá sản phẩm" />
           </Form.Item>
 
-          <Form.Item name="recipient_id" label="Người nhận">
-            <Select placeholder="Chọn người nhận" allowClear showSearch optionFilterProp="children">
-              {recipients.map(r => (
-                <Select.Option key={r.id} value={r.id}>{r.code} - {r.name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+          {transType === 'export' && (
+            <Form.Item name="recipient_id" label="Người nhận">
+              <Select placeholder="Chọn người nhận" allowClear showSearch optionFilterProp="children">
+                {recipients.map(r => (
+                  <Select.Option key={r.id} value={r.id}>{r.code} - {r.name}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
 
           <Form.Item name="note" label="Ghi chú">
             <Input.TextArea rows={3} placeholder="Nhập ghi chú" />
