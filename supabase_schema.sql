@@ -42,7 +42,8 @@ create table if not exists transactions (
   price numeric(15,2) default 0,
   note text,
   recipient_id bigint references recipients(id) on delete set null,
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- 4. Installation Orders table
