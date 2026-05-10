@@ -10,9 +10,9 @@ const seedData = async () => {
     const p5 = await addProduct({ code: 'CABLE-001', name: 'Cap HDMI 2m', category: 'Cable', unit: 'Cai', price: 150000, quantity: 50, min_stock: 20 });
 
     // 2. Recipients
-    const r1 = await addRecipient({ code: 'KTV-001', name: 'Nguyen Van A', type: 'technician', phone: '0901234567', province: 'Ha Noi', region: 'North', address: '123 Duong Lang' });
-    const r2 = await addRecipient({ code: 'KTV-002', name: 'Tran Van B', type: 'technician', phone: '0912345678', province: 'Da Nang', region: 'Central', address: '456 Le Loi' });
-    const r3 = await addRecipient({ code: 'CTV-001', name: 'Le Van C', type: 'collaborator', phone: '0923456789', province: 'TP.HCM', region: 'South', address: '789 Nguyen Trai' });
+    const r1 = await addRecipient({ code: 'KTV-001', name: 'Nguyen Van A', type: 'technician', phone: '0901234567', province: 'Ha Noi', region: 'North', address: '123 Duong Lang', allocation_type: 'normal' });
+    const r2 = await addRecipient({ code: 'KTV-002', name: 'Tran Van B', type: 'technician', phone: '0912345678', province: 'Da Nang', region: 'Central', address: '456 Le Loi', allocation_type: 'normal' });
+    const r3 = await addRecipient({ code: 'CTV-001', name: 'Le Van C', type: 'collaborator', phone: '0923456789', province: 'TP.HCM', region: 'South', address: '789 Nguyen Trai', allocation_type: 'default' });
 
     // 3. Installation Orders
     const o1 = await addInstallationOrder(

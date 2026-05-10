@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Table, Button, Modal, Form, DatePicker, Select, Space, Popconfirm, message, Input, Typography, List, Divider, Card, Tag, Statistic } from "antd";
 import { PlusOutlined, DeleteOutlined, EyeOutlined, EditOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { getAllDropStocks, getDropStockDetail, deleteDropStock, getAvailableInstallationOrders, createDropStock, updateDropStock, updateDropStockStatus } from "../utils/dbUtils";
+import { getAllDropStocks, getDropStockDetail, deleteDropStock, getAvailableInstallationOrders, createDropStock, updateDropStock, updateDropStockStatus, validateDropStockOrders } from "../utils/dbUtils";
 import useMobile from "../hooks/useMobile";
 
 const { Text, Title } = Typography;
@@ -103,6 +103,15 @@ const DropStock = () => {
         message.warning("Chọn ít nhất 1 phiếu");
         return;
       }
+
+      // Kiểm tra đơn đã tồn tại trong drop stock khác
+      const validation = await validateDropStockOrders(selectedOrderIds);
+      if (!validation.valid) {
+        const orderCodes = validation.conflictingOrders.map(o => o.code).join(", ");
+        message.error(`Các phiếu sau đã có trong drop stock khác: ${orderCodes}`);
+        return;
+      }
+
       await createDropStock({
         date: values.date.format("YYYY-MM-DD"),
         note: values.note || ""
@@ -123,6 +132,15 @@ const DropStock = () => {
         message.warning("Chọn ít nhất 1 phiếu");
         return;
       }
+
+      // Kiểm tra đơn đã tồn tại trong drop stock khác
+      const validation = await validateDropStockOrders(editOrderIds, editingId);
+      if (!validation.valid) {
+        const orderCodes = validation.conflictingOrders.map(o => o.code).join(", ");
+        message.error(`Các phiếu sau đã có trong drop stock khác: ${orderCodes}`);
+        return;
+      }
+
       await updateDropStock(editingId, {
         date: values.date.format("YYYY-MM-DD"),
         note: values.note || ""

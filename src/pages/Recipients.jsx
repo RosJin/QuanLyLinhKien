@@ -67,6 +67,16 @@ const Recipients = () => {
         <span>{type === 'customer' ? 'Khách hàng' : type === 'technician' ? 'KTV' : type === 'collaborator' ? 'CTV' : type}</span>
       )
     },
+    {
+      title: 'Cấp phát',
+      dataIndex: 'allocation_type',
+      key: 'allocation_type',
+      width: isMobile ? 80 : 100,
+      render: (type) => {
+        if (type === 'default') return <span style={{ color: '#52c41a' }}>Mặc định</span>;
+        return <span style={{ color: '#888' }}>Bình thường</span>;
+      }
+    },
     { title: 'SĐT', dataIndex: 'phone', key: 'phone', width: isMobile ? 100 : 120 },
     { title: 'Tỉnh', dataIndex: 'province', key: 'province', width: isMobile ? 80 : 100 },
     { title: 'Khu vực', dataIndex: 'region', key: 'region', width: isMobile ? 60 : 80 },
@@ -149,6 +159,12 @@ const Recipients = () => {
               <Select.Option value="Bắc">Miền Bắc</Select.Option>
               <Select.Option value="Trung">Miền Trung</Select.Option>
               <Select.Option value="Nam">Miền Nam</Select.Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="allocation_type" label="Cách cấp phát">
+            <Select placeholder="Chọn cách cấp phát">
+              <Select.Option value="normal">Bình thường (trừ khi có đơn lắp đặt)</Select.Option>
+              <Select.Option value="default">Mặc định (không trừ khi có đơn lắp đặt)</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item name="address" label="Địa chỉ">

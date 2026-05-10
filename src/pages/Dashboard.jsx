@@ -64,12 +64,15 @@ const Dashboard = () => {
       });
 
       // Subtract usage from installation orders (negative)
+      // Only subtract for recipients with normal allocation (not default)
       const orderRecipientMap = {};
       orders.forEach(o => { orderRecipientMap[o.id] = o.recipient_id; });
 
       items.forEach(item => {
         const recipientId = orderRecipientMap[item.order_id];
-        if (recipientId) {
+        const recipient = techs.find(t => t.id === recipientId);
+        // Chỉ trừ nếu KTV có allocation_type === 'normal', bỏ qua 'default'
+        if (recipientId && recipient && recipient.allocation_type !== 'default') {
           const code = productCodeMap[item.product_id];
           if (code && matrix[code]) {
             matrix[code][recipientId] = (matrix[code][recipientId] || 0) - item.quantity;
@@ -104,7 +107,9 @@ const Dashboard = () => {
           )
         },
         ...techs.map(t => ({
-          title: `${t.code}\n${t.name}`,
+          title: t.allocation_type === 'default'
+            ? `${t.code}\n${t.name}\n(MD)`
+            : `${t.code}\n${t.name}`,
           dataIndex: `tech_${t.id}`,
           key: `tech_${t.id}`,
           width: isMobile ? 70 : 90,
@@ -289,7 +294,8 @@ const Dashboard = () => {
             <div style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
               <span style={{ color: '#52c41a' }}>●</span> ≥ 3 (Đủ) &nbsp;
               <span style={{ color: '#fa8c16' }}>●</span> 1-2 (Sắp hết) &nbsp;
-              <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>●</span> 0 (Hết hàng)
+              <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>●</span> 0 (Hết hàng) &nbsp;|&nbsp;
+              <span style={{ color: '#1890ff' }}>MD</span> = Cấp phát mặc định (không trừ đơn lắp đặt)
             </div>
           </Card>
         </Col>

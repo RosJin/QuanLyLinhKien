@@ -29,7 +29,10 @@
       "Bash(npm uninstall *)",
       "Bash(npx vite *)",
       "Bash(Select-String -Pattern \"error|Error\" -Context 2)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(Sort-Object FullName)",
+      "Bash(Select-Object -First 50)",
+      "Bash(Get-Content *)"
     ]
   }
 }

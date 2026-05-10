@@ -567,11 +567,51 @@ export const getDropStockDetail = async (dropStockId) => {
     grandTotal += o.total_value || 0;
   }
 
+  // Sắp xếp KTV theo tên để thứ tự ổn định
+  const sortedTechs = Object.values(grouped_by_technician).sort((a, b) => {
+    const nameA = a.recipient?.name || '';
+    const nameB = b.recipient?.name || '';
+    return nameA.localeCompare(nameB);
+  });
+
   return {
     ...dropStock,
-    grouped_by_technician: Object.values(grouped_by_technician),
+    grouped_by_technician: sortedTechs,
     grand_total: grandTotal,
     total_orders: orders.length
+  };
+};
+
+export const validateDropStockOrders = async (orderIds, excludeDropStockId = null) => {
+  // Kiểm tra xem đơn nào đã tồn tại trong drop stock khác
+  const { data: activeDrops, error: dropsError } = await supabase.from('drop_stocks')
+    .select('id')
+    .in('status', ['draft', 'confirmed']);
+  if (dropsError) throw dropsError;
+
+  const activeDropIds = (activeDrops || []).map(d => d.id);
+  if (excludeDropStockId) {
+    const idx = activeDropIds.indexOf(excludeDropStockId);
+    if (idx > -1) activeDropIds.splice(idx, 1);
+  }
+
+  if (activeDropIds.length === 0) return { valid: true, conflictingOrders: [] };
+
+  const { data: links, error: linksError } = await supabase.from('drop_stock_orders')
+    .select('installation_order_id, drop_stock_id')
+    .in('drop_stock_id', activeDropIds)
+    .in('installation_order_id', orderIds);
+  if (linksError) throw linksError;
+
+  const conflictingOrderIds = [...new Set((links || []).map(l => l.installation_order_id))];
+  const { data: conflictingOrders, error: ordersError } = await supabase.from('installation_orders')
+    .select('id, code, recipient:recipients(name)')
+    .in('id', conflictingOrderIds);
+  if (ordersError) throw ordersError;
+
+  return {
+    valid: conflictingOrderIds.length === 0,
+    conflictingOrders: conflictingOrders || []
   };
 };
 
@@ -584,7 +624,17 @@ export const getAvailableInstallationOrders = async () => {
   const { data: allOrders, error: ordersError } = await supabase.from('installation_orders').select('*, recipient:recipients(*)').order('order_date', { ascending: false });
   if (ordersError) throw ordersError;
 
-  const { data: allLinks, error: linksError } = await supabase.from('drop_stock_orders').select('installation_order_id');
+  // Chỉ loại trừ đơn đã có trong drop stock 'draft' hoặc 'confirmed' (chưa hoàn thành)
+  const { data: activeDrops, error: dropsError } = await supabase.from('drop_stocks').select('id').in('status', ['draft', 'confirmed']);
+  if (dropsError) throw dropsError;
+
+  const activeDropIds = (activeDrops || []).map(d => d.id);
+
+  if (activeDropIds.length === 0) {
+    return allOrders || [];
+  }
+
+  const { data: allLinks, error: linksError } = await supabase.from('drop_stock_orders').select('installation_order_id').in('drop_stock_id', activeDropIds);
   if (linksError) throw linksError;
 
   const linkedOrderIds = new Set((allLinks || []).map(l => l.installation_order_id));
