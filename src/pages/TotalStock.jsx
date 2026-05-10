@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Table, Tag, Input } from 'antd';
-import { SearchOutlined } from '@ant-design/icons';
 import { getAllProducts, getTransactions } from '../utils/dbUtils';
 import useMobile from '../hooks/useMobile';
 
@@ -10,6 +9,7 @@ const TotalStock = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [collabHoldMap, setCollabHoldMap] = useState({});
   const [ktvHoldMap, setKtvHoldMap] = useState({});
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 15 });
 
   const loadProducts = async () => {
     const data = await getAllProducts('product');
@@ -17,7 +17,10 @@ const TotalStock = () => {
     setFilteredProducts(data);
   };
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { loadProducts(); }, 0);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const loadHoldMaps = async () => {
@@ -45,7 +48,8 @@ const TotalStock = () => {
       }
     };
 
-    loadHoldMaps();
+    const timer = setTimeout(() => { loadHoldMaps(); }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleSearch = (keyword) => {
@@ -174,7 +178,19 @@ const TotalStock = () => {
         dataSource={filteredProducts}
         columns={columns}
         rowKey="id"
-        pagination={{ pageSize: 15 }}
+        pagination={{
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          showSizeChanger: true,
+          pageSizeOptions: ['15', '30', '50', '100'],
+           showQuickJumper: false,
+          position: ['bottomRight']
+        }}
+        onChange={(pag) => {
+          const current = pag.current || 1;
+          const pageSize = pag.pageSize || pagination.pageSize;
+          setPagination({ current, pageSize });
+        }}
         scroll={{ x: 800 }}
         summary={(pageData) => {
             const totalQuantity = pageData.reduce((sum, item) => sum + (item.quantity || 0), 0);
