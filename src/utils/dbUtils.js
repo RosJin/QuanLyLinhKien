@@ -85,6 +85,61 @@ export const addTransaction = async (transaction) => {
   if (prodError) throw prodError;
 };
 
+export const processBatchTransaction = async (items, type, note = '', recipient_id = null) => {
+  const mergedItems = new Map();
+
+  (items || []).forEach((item) => {
+    const productId = item?.product_id;
+    const quantity = Number(item?.quantity || 0);
+
+    if (!productId || quantity <= 0) {
+      return;
+    }
+
+    const current = mergedItems.get(productId) || { ...item, quantity: 0 };
+    current.quantity += quantity;
+    if (item.price !== undefined) {
+      current.price = item.price;
+    }
+    mergedItems.set(productId, current);
+  });
+
+  const normalizedItems = Array.from(mergedItems.values());
+  if (!normalizedItems.length) {
+    throw new Error('Vui lòng chọn ít nhất một linh kiện');
+  }
+
+  for (const item of normalizedItems) {
+    const product = await getProductById(item.product_id);
+    if (!product) throw new Error('Khong tim thay san pham: ' + item.product_id);
+
+    if (type === 'export' && (product.quantity || 0) < item.quantity) {
+      throw new Error(`Khong du ton kho cho san pham: ${product.code || item.product_id}`);
+    }
+
+    const newQuantity = type === 'import'
+      ? product.quantity + item.quantity
+      : product.quantity - item.quantity;
+
+    const { error: transError } = await supabase.from('transactions').insert({
+      product_id: item.product_id,
+      type,
+      quantity: item.quantity,
+      price: item.price ?? product.price ?? 0,
+      note,
+      recipient_id,
+      created_at: new Date().toISOString()
+    });
+    if (transError) throw transError;
+
+    const { error: prodError } = await supabase.from('products').update({
+      quantity: newQuantity,
+      updated_at: new Date().toISOString()
+    }).eq('id', item.product_id);
+    if (prodError) throw prodError;
+  }
+};
+
 export const updateTransaction = async (id, newValues) => {
   // Get old transaction
   const { data: oldTrans, error: oldError } = await supabase.from('transactions').select('*').eq('id', id).single();
@@ -209,6 +264,17 @@ export const exportToRecipient = async (recipient_id, items, note = '') => {
       created_at: new Date().toISOString()
     });
   }
+};
+
+export const getRecipientProductHolding = async (recipient_id, product_id) => {
+  const { data, error } = await supabase.from('transactions').select('type,quantity').eq('recipient_id', recipient_id).eq('product_id', product_id);
+  if (error) throw error;
+  let net = 0;
+  (data || []).forEach(t => {
+    if (t.type === 'export') net += (t.quantity || 0);
+    if (t.type === 'import') net -= (t.quantity || 0);
+  });
+  return net;
 };
 
 // ==================== RECIPIENTS ====================

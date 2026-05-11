@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Table, Button, Modal, Form, Select, InputNumber, Input, Radio, Space, Tag, message, Typography, DatePicker, Popconfirm } from 'antd';
-import { PlusOutlined, ImportOutlined, ExportOutlined, EditOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
-import { getTransactions, getAllProducts, getAllRecipients, addTransaction, updateTransaction, deleteTransaction, getAllCombos, getComboItems, processComboTransaction } from '../utils/dbUtils';
+import { ImportOutlined, ExportOutlined, EditOutlined, DeleteOutlined, ClearOutlined } from '@ant-design/icons';
+import { getTransactions, getAllProducts, getAllRecipients, addTransaction, updateTransaction, deleteTransaction, getAllCombos, getComboItems, processComboTransaction, processBatchTransaction } from '../utils/dbUtils';
 import dayjs from 'dayjs';
 import useMobile from '../hooks/useMobile';
 
@@ -18,6 +18,8 @@ const PhysicalStock = () => {
   const [transType, setTransType] = useState('import');
   const [selectedType, setSelectedType] = useState('product');
   const [comboItems, setComboItems] = useState([]);
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchPickerProductId, setBatchPickerProductId] = useState(null);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [form] = Form.useForm();
 
@@ -42,12 +44,7 @@ const PhysicalStock = () => {
     loadStatic();
   }, []);
 
-  // Reload transactions when filters change
-  useEffect(() => {
-    reloadTransactions();
-  }, [filterProductId, filterRecipientId, filterType, filterDateRange]);
-
-  const reloadTransactions = async () => {
+  const reloadTransactions = useCallback(async () => {
     const filters = {};
     if (filterProductId) filters.product_id = filterProductId;
     if (filterRecipientId) filters.recipient_id = filterRecipientId;
@@ -57,15 +54,28 @@ const PhysicalStock = () => {
 
     const trans = await getTransactions(filters);
     setTransactions(trans);
-  };
+  }, [filterProductId, filterRecipientId, filterType, filterDateRange]);
+
+  // Reload transactions when filters change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      reloadTransactions();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [reloadTransactions]);
 
   const handleAddTransaction = (type) => {
     setEditingTransaction(null);
     setTransType(type);
     setSelectedType('product');
     setComboItems([]);
+    setBatchItems([]);
+    setBatchPickerProductId(null);
     form.resetFields();
-    form.setFieldsValue({ type });
+    form.setFieldsValue({
+      type,
+      batch_items: [{ quantity: 1 }]
+    });
     setIsModalOpen(true);
   };
 
@@ -107,6 +117,51 @@ const PhysicalStock = () => {
     }
   };
 
+  const addBatchProduct = (productId = null) => {
+    const id = productId || batchPickerProductId;
+    if (!id) {
+      message.warning('Vui lòng chọn linh kiện');
+      return;
+    }
+
+    const product = products.find(p => p.id === id);
+    if (!product) {
+      message.warning('Không tìm thấy linh kiện');
+      return;
+    }
+
+    setBatchItems(prev => {
+      const existing = prev.find(item => item.product_id === product.id);
+      if (existing) {
+        return prev.map(item => (
+          item.product_id === product.id
+            ? { ...item, quantity: (item.quantity || 0) + 1 }
+            : item
+        ));
+      }
+
+      return [...prev, { product_id: product.id, quantity: 1, price: product.price || 0 }];
+    });
+
+    setBatchPickerProductId(null);
+  };
+
+  const handleBatchProductSelect = (productId) => {
+    addBatchProduct(productId);
+  };
+
+  const updateBatchQuantity = (productId, quantity) => {
+    setBatchItems(prev => prev.map(item => (
+      item.product_id === productId
+        ? { ...item, quantity }
+        : item
+    )));
+  };
+
+  const removeBatchProduct = (productId) => {
+    setBatchItems(prev => prev.filter(item => item.product_id !== productId));
+  };
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
@@ -128,6 +183,21 @@ const PhysicalStock = () => {
           const qty = values.quantity || 1;
           await processComboTransaction(values.combo_id, transType, qty, values.note || '', values.recipient_id);
           message.success(`Xử lý Combo ${transType === 'import' ? 'nhập' : 'xuất'} thành công`);
+        } else if (selectedType === 'batch') {
+          if (transType === 'export') {
+            const recipientIds = Array.isArray(values.recipient_id) ? values.recipient_id.filter(Boolean) : (values.recipient_id ? [values.recipient_id] : []);
+            if (!recipientIds.length) {
+              message.warning('Vui lòng chọn ít nhất một KTV/CTV');
+              return;
+            }
+
+            for (const recipientId of recipientIds) {
+              await processBatchTransaction(batchItems, transType, values.note || '', recipientId);
+            }
+          } else {
+            await processBatchTransaction(batchItems, transType, values.note || '', null);
+          }
+          message.success(`${transType === 'import' ? 'Nhập' : 'Xuất'} nhiều linh kiện thành công`);
         } else {
           await addTransaction(values);
           message.success(`${transType === 'import' ? 'Nhập' : 'Xuất'} kho thành công`);
@@ -193,6 +263,7 @@ const PhysicalStock = () => {
           <Button type="primary" icon={<ExportOutlined />} onClick={() => handleAddTransaction('export')} danger>
             Xuất kho
           </Button>
+          
         </div>
       </div>
 
@@ -258,6 +329,7 @@ const PhysicalStock = () => {
             <Form.Item label="Loại giao dịch">
               <Radio.Group value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
                 <Radio value="product">Sản phẩm</Radio>
+                <Radio value="batch">Nhiều linh kiện</Radio>
                 <Radio value="combo">Combo</Radio>
               </Radio.Group>
             </Form.Item>
@@ -283,6 +355,68 @@ const PhysicalStock = () => {
                 <InputNumber min={1} style={{ width: '100%' }} />
               </Form.Item>
             </>
+          ) : selectedType === 'batch' ? (
+            <div style={{ marginBottom: 16 }}>
+              <Form.Item label="Chọn linh kiện để thêm">
+                <Select
+                  value={batchPickerProductId}
+                  onChange={handleBatchProductSelect}
+                  placeholder="Tìm và chọn linh kiện"
+                  showSearch
+                  optionFilterProp="children"
+                >
+                  {products.map(p => (
+                    <Select.Option key={p.id} value={p.id}>
+                      {p.code} - {p.name} (Tồn: {p.quantity})
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <div style={{ marginTop: 8, marginBottom: 8, fontWeight: 600 }}>
+                Đã chọn: {batchItems.length}
+              </div>
+
+              <Table
+                size="small"
+                pagination={false}
+                rowKey="product_id"
+                dataSource={batchItems}
+                columns={[
+                  {
+                    title: 'Linh kiện',
+                    key: 'product',
+                    render: (_, item) => {
+                      const product = products.find(p => p.id === item.product_id);
+                      return product ? `${product.code} - ${product.name}` : item.product_id;
+                    }
+                  },
+                  {
+                    title: 'Số lượng',
+                    key: 'quantity',
+                    width: 140,
+                    render: (_, item) => (
+                      <InputNumber
+                        min={1}
+                        value={item.quantity}
+                        onChange={(value) => updateBatchQuantity(item.product_id, value || 1)}
+                        style={{ width: '100%' }}
+                      />
+                    )
+                  },
+                  {
+                    title: 'Thao tác',
+                    key: 'actions',
+                    width: 100,
+                    render: (_, item) => (
+                      <Button danger type="link" onClick={() => removeBatchProduct(item.product_id)}>
+                        Xóa
+                      </Button>
+                    )
+                  }
+                ]}
+              />
+            </div>
           ) : (
             <>
               <Form.Item name="combo_id" label="Combo" rules={[{ required: true, message: 'Chọn Combo' }]}>
@@ -320,8 +454,17 @@ const PhysicalStock = () => {
 
           {transType === 'export' && (
             <Form.Item name="recipient_id" label="Người nhận">
-              <Select placeholder="Chọn người nhận" allowClear showSearch optionFilterProp="children">
-                {recipients.map(r => (
+              <Select
+                placeholder={selectedType === 'batch' ? 'Chọn KTV/CTV' : 'Chọn người nhận'}
+                allowClear
+                showSearch
+                optionFilterProp="children"
+                mode={selectedType === 'batch' ? 'multiple' : undefined}
+              >
+                {(selectedType === 'batch'
+                  ? recipients.filter(r => r.type === 'technician' || r.type === 'collaborator')
+                  : recipients
+                ).map(r => (
                   <Select.Option key={r.id} value={r.id}>{r.code} - {r.name}</Select.Option>
                 ))}
               </Select>
